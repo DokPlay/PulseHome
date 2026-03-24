@@ -63,6 +63,10 @@ public class CollectorEventService {
         } catch (ExecutionException exception) {
             log.error("Kafka publish failed. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
             throw new EventPublishException(buildFailureMessage("Failed to publish event to Kafka", topic, key, exception), exception);
+        } catch (RuntimeException exception) {
+            log.error("Kafka publish failed before acknowledgement wait. topic={}, key={}, payloadBytes={}",
+                    topic, key, payload.length, exception);
+            throw new EventPublishException(buildFailureMessage("Failed to publish event to Kafka", topic, key, exception), exception);
         }
     }
 
