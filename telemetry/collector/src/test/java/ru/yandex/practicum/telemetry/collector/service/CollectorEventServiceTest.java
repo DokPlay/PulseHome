@@ -128,6 +128,34 @@ class CollectorEventServiceTest {
     }
 
     @Test
+    void shouldFallbackToExceptionTypeWhenPublishFailureCauseMessageIsMissing() {
+        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
+        CompletableFuture<org.springframework.kafka.support.SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new TimeoutException());
+        when(failingKafkaTemplate.send(anyString(), anyString(), any())).thenReturn(failedFuture);
+
+        CollectorEventService failingService = new CollectorEventService(
+                failingKafkaTemplate,
+                new CollectorKafkaProperties(),
+                new SensorEventAvroMapper(),
+                new HubEventAvroMapper(),
+                new AvroBinarySerializer()
+        );
+
+        MotionSensorEvent event = new MotionSensorEvent();
+        event.setId("sensor.motion.2");
+        event.setHubId("hub-10");
+        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
+        event.setLinkQuality(90);
+        event.setMotion(true);
+        event.setVoltage(230);
+
+        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+                .isInstanceOf(EventPublishException.class)
+                .hasMessageContaining("cause=TimeoutException");
+    }
+
+    @Test
     void shouldFailFastOnInvalidBooleanLikeConditionValue() {
         ScenarioAddedEvent event = new ScenarioAddedEvent();
         event.setHubId("hub-3");

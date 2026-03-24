@@ -62,6 +62,23 @@ class SensorEventAvroMapperTest {
         assertThat(payload.getHubId()).isEqualTo("hub-3");
         assertThat(payload.getTemperatureC()).isEqualTo(23);
         assertThat(payload.getTemperatureF()).isEqualTo(73);
+        assertThat(payload.getTimestamp()).isEqualTo(avroEvent.getTimestamp());
+    }
+
+    @Test
+    void shouldUseSameGeneratedTimestampForTemperatureEventWrapperAndPayload() {
+        TemperatureSensorEvent event = new TemperatureSensorEvent();
+        event.setId("sensor.temperature.2");
+        event.setHubId("hub-4");
+        event.setType(SensorEventType.TEMPERATURE_SENSOR_EVENT);
+        event.setTemperatureC(20);
+        event.setTemperatureF(68);
+
+        SensorEventAvro avroEvent = mapper.toAvro(event);
+
+        assertThat(avroEvent.getPayload()).isInstanceOf(TemperatureSensorAvro.class);
+        TemperatureSensorAvro payload = (TemperatureSensorAvro) avroEvent.getPayload();
+        assertThat(payload.getTimestamp()).isEqualTo(avroEvent.getTimestamp());
     }
 
     @Test

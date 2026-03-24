@@ -68,7 +68,21 @@ public class CollectorEventService {
     }
 
     private String buildFailureMessage(String prefix, String topic, String key, Exception exception) {
-        String causeMessage = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
+        String causeMessage = resolveCauseMessage(exception);
         return "%s. topic=%s, key=%s, cause=%s".formatted(prefix, topic, key, causeMessage);
+    }
+
+    private String resolveCauseMessage(Exception exception) {
+        Throwable cause = exception.getCause();
+        if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()) {
+            return cause.getMessage();
+        }
+        if (cause != null) {
+            return cause.getClass().getSimpleName();
+        }
+        if (exception.getMessage() != null && !exception.getMessage().isBlank()) {
+            return exception.getMessage();
+        }
+        return exception.getClass().getSimpleName();
     }
 }
