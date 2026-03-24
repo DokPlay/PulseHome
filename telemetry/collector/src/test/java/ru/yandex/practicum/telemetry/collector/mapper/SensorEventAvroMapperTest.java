@@ -1,11 +1,17 @@
 package ru.yandex.practicum.telemetry.collector.mapper;
 
 import org.junit.jupiter.api.Test;
+import ru.yandex.practicum.kafka.telemetry.event.ClimateSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
+import ru.yandex.practicum.telemetry.collector.dto.sensor.ClimateSensorEvent;
+import ru.yandex.practicum.telemetry.collector.dto.sensor.LightSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.MotionSensorEvent;
+import ru.yandex.practicum.telemetry.collector.dto.sensor.SwitchSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.TemperatureSensorEvent;
 
 import java.time.Instant;
@@ -56,5 +62,56 @@ class SensorEventAvroMapperTest {
         assertThat(payload.getHubId()).isEqualTo("hub-3");
         assertThat(payload.getTemperatureC()).isEqualTo(23);
         assertThat(payload.getTemperatureF()).isEqualTo(73);
+    }
+
+    @Test
+    void shouldMapClimateSensorEvent() {
+        ClimateSensorEvent event = new ClimateSensorEvent();
+        event.setId("sensor.climate.1");
+        event.setHubId("hub-7");
+        event.setType(SensorEventType.CLIMATE_SENSOR_EVENT);
+        event.setTemperatureC(22);
+        event.setHumidity(48);
+        event.setCo2Level(600);
+
+        SensorEventAvro avroEvent = mapper.toAvro(event);
+
+        assertThat(avroEvent.getPayload()).isInstanceOf(ClimateSensorAvro.class);
+        ClimateSensorAvro payload = (ClimateSensorAvro) avroEvent.getPayload();
+        assertThat(payload.getTemperatureC()).isEqualTo(22);
+        assertThat(payload.getHumidity()).isEqualTo(48);
+        assertThat(payload.getCo2Level()).isEqualTo(600);
+    }
+
+    @Test
+    void shouldMapLightSensorEvent() {
+        LightSensorEvent event = new LightSensorEvent();
+        event.setId("sensor.light.1");
+        event.setHubId("hub-8");
+        event.setType(SensorEventType.LIGHT_SENSOR_EVENT);
+        event.setLinkQuality(77);
+        event.setLuminosity(320);
+
+        SensorEventAvro avroEvent = mapper.toAvro(event);
+
+        assertThat(avroEvent.getPayload()).isInstanceOf(LightSensorAvro.class);
+        LightSensorAvro payload = (LightSensorAvro) avroEvent.getPayload();
+        assertThat(payload.getLinkQuality()).isEqualTo(77);
+        assertThat(payload.getLuminosity()).isEqualTo(320);
+    }
+
+    @Test
+    void shouldMapSwitchSensorEvent() {
+        SwitchSensorEvent event = new SwitchSensorEvent();
+        event.setId("sensor.switch.1");
+        event.setHubId("hub-9");
+        event.setType(SensorEventType.SWITCH_SENSOR_EVENT);
+        event.setState(true);
+
+        SensorEventAvro avroEvent = mapper.toAvro(event);
+
+        assertThat(avroEvent.getPayload()).isInstanceOf(SwitchSensorAvro.class);
+        SwitchSensorAvro payload = (SwitchSensorAvro) avroEvent.getPayload();
+        assertThat(payload.getState()).isTrue();
     }
 }

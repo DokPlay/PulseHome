@@ -1,5 +1,7 @@
 package ru.yandex.practicum.telemetry.collector.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
@@ -16,6 +18,8 @@ import java.util.concurrent.TimeoutException;
 
 @Service
 public class CollectorEventService {
+
+    private static final Logger log = LoggerFactory.getLogger(CollectorEventService.class);
 
     private final KafkaTemplate<String, byte[]> kafkaTemplate;
     private final CollectorKafkaProperties properties;
@@ -49,13 +53,22 @@ public class CollectorEventService {
 
     private void publish(String topic, String key, byte[] payload) {
         try {
+            // Collector confirms the HTTP request only after Kafka acknowledges the write.
+            // This keeps ingestion deterministic for Hub Router checks in Sprint 19.
             kafkaTemplate.send(topic, key, payload)
                     .get(properties.getSendTimeout().toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new EventPublishException("Kafka publish interrupted", exception);
+            log.warn("Kafka publish interrupted. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
+            throw new EventPublishException(buildFailureMessage("Kafka publish interrupted", topic, key, exception), exception);
         } catch (ExecutionException | TimeoutException exception) {
-            throw new EventPublishException("Failed to publish event to Kafka", exception);
+            log.error("Kafka publish failed. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
+            throw new EventPublishException(buildFailureMessage("Failed to publish event to Kafka", topic, key, exception), exception);
         }
+    }
+
+    private String buildFailureMessage(String prefix, String topic, String key, Exception exception) {
+        String causeMessage = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
+        return "%s. topic=%s, key=%s, cause=%s".formatted(prefix, topic, key, causeMessage);
     }
 }

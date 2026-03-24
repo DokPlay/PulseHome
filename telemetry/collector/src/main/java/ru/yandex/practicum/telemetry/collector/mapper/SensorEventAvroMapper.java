@@ -39,8 +39,8 @@ public class SensorEventAvroMapper {
         }
         if (event instanceof LightSensorEvent lightSensorEvent) {
             return LightSensorAvro.newBuilder()
-                    .setLinkQuality(defaultInt(lightSensorEvent.getLinkQuality()))
-                    .setLuminosity(defaultInt(lightSensorEvent.getLuminosity()))
+                    .setLinkQuality(lightSensorEvent.getLinkQuality())
+                    .setLuminosity(lightSensorEvent.getLuminosity())
                     .build();
         }
         if (event instanceof MotionSensorEvent motionSensorEvent) {
@@ -64,7 +64,7 @@ public class SensorEventAvroMapper {
                     .setTemperatureF(temperatureSensorEvent.getTemperatureF())
                     .build();
         }
-        throw new IllegalArgumentException("Unsupported sensor event type: " + event.getClass().getName());
+        throw new IllegalStateException("Unsupported sensor event type: " + event.getClass().getName());
     }
 
     private Instant normalizeTimestamp(Instant timestamp) {
@@ -72,7 +72,4 @@ public class SensorEventAvroMapper {
         return actualTimestamp.truncatedTo(ChronoUnit.MILLIS);
     }
 
-    private int defaultInt(Integer value) {
-        return value == null ? 0 : value;
-    }
 }
