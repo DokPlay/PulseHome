@@ -156,6 +156,35 @@ class CollectorEventServiceTest {
     }
 
     @Test
+    void shouldWrapRuntimeFailureThrownByKafkaSend() {
+        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
+        when(failingKafkaTemplate.send(anyString(), anyString(), any()))
+                .thenThrow(new IllegalStateException("producer factory is not initialized"));
+
+        CollectorEventService failingService = new CollectorEventService(
+                failingKafkaTemplate,
+                new CollectorKafkaProperties(),
+                new SensorEventAvroMapper(),
+                new HubEventAvroMapper(),
+                new AvroBinarySerializer()
+        );
+
+        MotionSensorEvent event = new MotionSensorEvent();
+        event.setId("sensor.motion.3");
+        event.setHubId("hub-11");
+        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
+        event.setLinkQuality(91);
+        event.setMotion(true);
+        event.setVoltage(231);
+
+        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+                .isInstanceOf(EventPublishException.class)
+                .hasMessageContaining("topic=telemetry.sensors.v1")
+                .hasMessageContaining("key=hub-11")
+                .hasMessageContaining("cause=producer factory is not initialized");
+    }
+
+    @Test
     void shouldFailFastOnInvalidBooleanLikeConditionValue() {
         ScenarioAddedEvent event = new ScenarioAddedEvent();
         event.setHubId("hub-3");
