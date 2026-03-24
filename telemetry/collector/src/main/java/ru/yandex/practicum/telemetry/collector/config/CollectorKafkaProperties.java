@@ -1,6 +1,7 @@
 package ru.yandex.practicum.telemetry.collector.config;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -60,6 +61,14 @@ public class CollectorKafkaProperties {
 
     public void setProducer(Producer producer) {
         this.producer = producer;
+    }
+
+    @AssertTrue(message = "collector.kafka.sendTimeout must be greater than collector.kafka.producer.lingerMs")
+    public boolean isSendTimeoutCompatibleWithProducerLinger() {
+        if (sendTimeout == null || producer == null) {
+            return true;
+        }
+        return sendTimeout.toMillis() > producer.getLingerMs();
     }
 
     public static class Topics {
@@ -152,6 +161,11 @@ public class CollectorKafkaProperties {
 
         public void setMaxInFlightRequestsPerConnection(int maxInFlightRequestsPerConnection) {
             this.maxInFlightRequestsPerConnection = maxInFlightRequestsPerConnection;
+        }
+
+        @AssertTrue(message = "collector.kafka.producer.maxInFlightRequestsPerConnection must be <= 5 when idempotence is enabled")
+        public boolean isIdempotenceCompatibleWithMaxInFlight() {
+            return !enableIdempotence || maxInFlightRequestsPerConnection <= 5;
         }
     }
 }
