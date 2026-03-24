@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "DeviceRemovedEventAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "id", "type": "string" }
+  ]
+}

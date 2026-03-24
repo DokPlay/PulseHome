@@ -1,0 +1,17 @@
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ActionTypeAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ClimateSensorAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ConditionOperationAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ConditionTypeAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\DeviceActionAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\DeviceAddedEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\DeviceRemovedEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\DeviceTypeAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\HubEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\LightSensorAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\MotionSensorAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ScenarioAddedEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ScenarioConditionAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\ScenarioRemovedEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\SensorEventAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\SwitchSensorAvro.java
+C:\PulseHome\telemetry\serialization\avro-schemas\target\generated-sources\avro\ru\yandex\practicum\kafka\telemetry\event\TemperatureSensorAvro.java
