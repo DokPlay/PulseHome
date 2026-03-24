@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: ru.yandex.practicum.telemetry.collector.controller.EventControllerTest
--------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.304 s -- in ru.yandex.practicum.telemetry.collector.controller.EventControllerTest

@@ -1,5 +1,0 @@
-ru\yandex\practicum\telemetry\collector\controller\EventControllerTest.class
-ru\yandex\practicum\telemetry\collector\mapper\HubEventAvroMapperTest.class
-ru\yandex\practicum\telemetry\collector\mapper\SensorEventAvroMapperTest.class
-ru\yandex\practicum\telemetry\collector\dto\HubEventDeserializationTest.class
-ru\yandex\practicum\telemetry\collector\dto\SensorEventDeserializationTest.class

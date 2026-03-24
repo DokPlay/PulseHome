@@ -1,6 +1,0 @@
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\controller\EventControllerTest.java
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\dto\HubEventDeserializationTest.java
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\dto\SensorEventDeserializationTest.java
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\mapper\HubEventAvroMapperTest.java
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\mapper\SensorEventAvroMapperTest.java
-C:\PulseHome\telemetry\collector\src\test\java\ru\yandex\practicum\telemetry\collector\service\CollectorEventServiceTest.java
