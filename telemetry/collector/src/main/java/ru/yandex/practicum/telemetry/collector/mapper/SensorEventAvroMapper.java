@@ -21,15 +21,16 @@ import java.time.temporal.ChronoUnit;
 public class SensorEventAvroMapper {
 
     public SensorEventAvro toAvro(SensorEvent event) {
+        Instant normalizedTimestamp = normalizeTimestamp(event.getTimestamp());
         return SensorEventAvro.newBuilder()
                 .setId(event.getId())
                 .setHubId(event.getHubId())
-                .setTimestamp(normalizeTimestamp(event.getTimestamp()))
-                .setPayload(mapPayload(event))
+                .setTimestamp(normalizedTimestamp)
+                .setPayload(mapPayload(event, normalizedTimestamp))
                 .build();
     }
 
-    private Object mapPayload(SensorEvent event) {
+    private Object mapPayload(SensorEvent event, Instant normalizedTimestamp) {
         if (event instanceof ClimateSensorEvent climateSensorEvent) {
             return ClimateSensorAvro.newBuilder()
                     .setTemperatureC(climateSensorEvent.getTemperatureC())
@@ -59,7 +60,7 @@ public class SensorEventAvroMapper {
             return TemperatureSensorAvro.newBuilder()
                     .setId(temperatureSensorEvent.getId())
                     .setHubId(temperatureSensorEvent.getHubId())
-                    .setTimestamp(normalizeTimestamp(temperatureSensorEvent.getTimestamp()))
+                    .setTimestamp(normalizedTimestamp)
                     .setTemperatureC(temperatureSensorEvent.getTemperatureC())
                     .setTemperatureF(temperatureSensorEvent.getTemperatureF())
                     .build();
