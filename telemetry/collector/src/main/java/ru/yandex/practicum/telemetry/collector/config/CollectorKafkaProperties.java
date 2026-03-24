@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -18,11 +19,14 @@ public class CollectorKafkaProperties {
     private String bootstrapServers = "localhost:9092";
 
     @NotNull
+    @DurationMin(seconds = 1)
     private Duration sendTimeout = Duration.ofSeconds(10);
 
+    @NotNull
     @Valid
     private Producer producer = new Producer();
 
+    @NotNull
     @Valid
     private Topics topics = new Topics();
 
