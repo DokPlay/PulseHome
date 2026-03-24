@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "MotionSensorAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "link_quality", "type": "int" },
+    { "name": "motion", "type": "boolean" },
+    { "name": "voltage", "type": "int" }
+  ]
+}
