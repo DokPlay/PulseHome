@@ -12,6 +12,7 @@ import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
+import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionType;
 import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAction;
 import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAddedEvent;
@@ -60,7 +61,7 @@ public class HubEventAvroMapper {
                     .setName(scenarioRemovedEvent.getName())
                     .build();
         }
-        throw new IllegalArgumentException("Unsupported hub event type: " + event.getClass().getName());
+        throw new IllegalStateException("Unsupported hub event type: " + event.getClass().getName());
     }
 
     private List<ScenarioConditionAvro> mapConditions(List<ScenarioCondition> conditions) {
@@ -83,8 +84,10 @@ public class HubEventAvroMapper {
             return null;
         }
         if (condition.getType() == ConditionType.MOTION || condition.getType() == ConditionType.SWITCH) {
+            // Hub Router sends scenario values as integers in JSON, but the Avro contract for
+            // boolean-like conditions is boolean. We translate 0/1 explicitly to preserve intent.
             if (condition.getValue() != 0 && condition.getValue() != 1) {
-                throw new IllegalArgumentException("Boolean-like condition value must be 0 or 1");
+                throw new InvalidScenarioConditionValueException("Boolean-like condition value must be 0 or 1");
             }
             return condition.getValue() == 1;
         }

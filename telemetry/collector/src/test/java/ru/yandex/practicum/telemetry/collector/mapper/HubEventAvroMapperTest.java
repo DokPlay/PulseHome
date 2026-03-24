@@ -1,15 +1,23 @@
 package ru.yandex.practicum.telemetry.collector.mapper;
 
 import org.junit.jupiter.api.Test;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
+import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ActionType;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionOperation;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionType;
+import ru.yandex.practicum.telemetry.collector.dto.enums.DeviceType;
 import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAction;
+import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAddedEvent;
+import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceRemovedEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.HubEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioAddedEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioCondition;
+import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioRemovedEvent;
 
 import java.time.Instant;
 import java.util.List;
@@ -52,8 +60,43 @@ class HubEventAvroMapperTest {
         event.setActions(List.of(action()));
 
         assertThatThrownBy(() -> mapper.toAvro(event))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidScenarioConditionValueException.class)
                 .hasMessageContaining("0 or 1");
+    }
+
+    @Test
+    void shouldMapDeviceAddedEvent() {
+        DeviceAddedEvent event = new DeviceAddedEvent();
+        event.setHubId("hub-1");
+        event.setId("sensor.motion.1");
+        event.setDeviceType(DeviceType.MOTION_SENSOR);
+
+        DeviceAddedEventAvro payload = (DeviceAddedEventAvro) mapper.toAvro(event).getPayload();
+
+        assertThat(payload.getId()).isEqualTo("sensor.motion.1");
+        assertThat(payload.getType().name()).isEqualTo("MOTION_SENSOR");
+    }
+
+    @Test
+    void shouldMapDeviceRemovedEvent() {
+        DeviceRemovedEvent event = new DeviceRemovedEvent();
+        event.setHubId("hub-1");
+        event.setId("sensor.motion.1");
+
+        DeviceRemovedEventAvro payload = (DeviceRemovedEventAvro) mapper.toAvro(event).getPayload();
+
+        assertThat(payload.getId()).isEqualTo("sensor.motion.1");
+    }
+
+    @Test
+    void shouldMapScenarioRemovedEvent() {
+        ScenarioRemovedEvent event = new ScenarioRemovedEvent();
+        event.setHubId("hub-1");
+        event.setName("Night light");
+
+        ScenarioRemovedEventAvro payload = (ScenarioRemovedEventAvro) mapper.toAvro(event).getPayload();
+
+        assertThat(payload.getName()).isEqualTo("Night light");
     }
 
     private ScenarioCondition motionCondition() {

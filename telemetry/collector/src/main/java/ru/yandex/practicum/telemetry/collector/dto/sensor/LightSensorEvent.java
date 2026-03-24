@@ -1,11 +1,14 @@
 package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
+import jakarta.validation.constraints.NotNull;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
 public class LightSensorEvent extends SensorEvent {
 
+    @NotNull
     private Integer linkQuality;
 
+    @NotNull
     private Integer luminosity;
 
     public LightSensorEvent() {
