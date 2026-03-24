@@ -13,8 +13,6 @@ import ru.yandex.practicum.telemetry.collector.mapper.HubEventAvroMapper;
 import ru.yandex.practicum.telemetry.collector.mapper.SensorEventAvroMapper;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Service
 public class CollectorEventService {
@@ -54,14 +52,15 @@ public class CollectorEventService {
     private void publish(String topic, String key, byte[] payload) {
         try {
             // Collector confirms the HTTP request only after Kafka acknowledges the write.
-            // This keeps ingestion deterministic for Hub Router checks in Sprint 19.
+            // Producer-level max.block.ms and delivery.timeout.ms already bound the wait time,
+            // so we do not add a second client-side timeout that could race with Kafka delivery.
             kafkaTemplate.send(topic, key, payload)
-                    .get(properties.getSendTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                    .get();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             log.warn("Kafka publish interrupted. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
             throw new EventPublishException(buildFailureMessage("Kafka publish interrupted", topic, key, exception), exception);
-        } catch (ExecutionException | TimeoutException exception) {
+        } catch (ExecutionException exception) {
             log.error("Kafka publish failed. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
             throw new EventPublishException(buildFailureMessage("Failed to publish event to Kafka", topic, key, exception), exception);
         }
