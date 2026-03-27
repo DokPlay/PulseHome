@@ -37,8 +37,6 @@ public class AggregationStarter {
     }
 
     public void start() {
-        Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "aggregator-shutdown"));
-
         try {
             consumer.subscribe(List.of(properties.getTopics().getSensors()));
 
