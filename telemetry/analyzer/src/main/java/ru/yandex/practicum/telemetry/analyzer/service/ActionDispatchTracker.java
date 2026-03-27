@@ -1,5 +1,6 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.telemetry.analyzer.entity.ActionDispatch;
@@ -31,18 +32,18 @@ public class ActionDispatchTracker {
 
     @Transactional
     public void markDispatched(String hubId, String scenarioName, Instant snapshotTimestamp, ActionSpec actionSpec) {
-        if (isAlreadyDispatched(hubId, scenarioName, snapshotTimestamp, actionSpec)) {
-            return;
+        try {
+            actionDispatchRepository.save(new ActionDispatch(
+                    hubId,
+                    scenarioName,
+                    snapshotTimestamp,
+                    actionSpec.sensorId(),
+                    actionSpec.type(),
+                    normalizeActionValue(actionSpec)
+            ));
+        } catch (DataIntegrityViolationException ignored) {
+            // A concurrent or repeated retry may race with an already persisted dispatch marker.
         }
-
-        actionDispatchRepository.save(new ActionDispatch(
-                hubId,
-                scenarioName,
-                snapshotTimestamp,
-                actionSpec.sensorId(),
-                actionSpec.type(),
-                normalizeActionValue(actionSpec)
-        ));
     }
 
     @Transactional
