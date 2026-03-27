@@ -24,11 +24,14 @@ public class SnapshotAnalyzerService {
 
     private final HubConfigurationService hubConfigurationService;
     private final DeviceActionDispatcher deviceActionDispatcher;
+    private final ActionDispatchTracker actionDispatchTracker;
 
     public SnapshotAnalyzerService(HubConfigurationService hubConfigurationService,
-                                   DeviceActionDispatcher deviceActionDispatcher) {
+                                   DeviceActionDispatcher deviceActionDispatcher,
+                                   ActionDispatchTracker actionDispatchTracker) {
         this.hubConfigurationService = hubConfigurationService;
         this.deviceActionDispatcher = deviceActionDispatcher;
+        this.actionDispatchTracker = actionDispatchTracker;
     }
 
     public void analyze(SensorsSnapshotAvro snapshot) {
@@ -44,9 +47,17 @@ public class SnapshotAnalyzerService {
             }
 
             for (ActionSpec action : scenario.actions()) {
+                if (actionDispatchTracker.isAlreadyDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action)) {
+                    continue;
+                }
+
                 deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
+                actionDispatchTracker.markDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
             }
         }
+
+        // Keep only the current snapshot's dispatch progress for the hub to bound dedupe state growth.
+        actionDispatchTracker.pruneOlderSnapshots(snapshot.getHubId(), snapshot.getTimestamp());
     }
 
     private boolean matchesAllConditions(Map<String, SensorStateAvro> sensorStates, List<ConditionSpec> conditions) {
