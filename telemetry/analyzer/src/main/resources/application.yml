@@ -1,6 +1,8 @@
 spring:
   application:
     name: analyzer
+  main:
+    web-application-type: none
   datasource:
     url: ${ANALYZER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/analyzer}
     username: ${ANALYZER_DATASOURCE_USERNAME:postgres}

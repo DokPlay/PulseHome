@@ -1,47 +1,41 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DataIntegrityViolationException;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
 import ru.yandex.practicum.telemetry.analyzer.repository.ActionDispatchRepository;
 
-import java.sql.SQLException;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ActionDispatchTrackerTest {
 
     @Test
-    void shouldIgnoreDuplicateDispatchMarkerViolations() {
+    void shouldInsertDispatchMarkerUsingNativeIgnoreQuery() {
         ActionDispatchRepository repository = mock(ActionDispatchRepository.class);
         ActionDispatchTracker tracker = new ActionDispatchTracker(repository);
+        Instant timestamp = Instant.parse("2024-08-06T15:11:24.157Z");
 
-        doThrow(new DataIntegrityViolationException("duplicate key", new SQLException("duplicate", "23505")))
-                .when(repository).saveAndFlush(any());
+        when(repository.insertIgnore(
+                eq("hub-1"),
+                eq("scenario-1"),
+                eq(timestamp),
+                eq("switch.1"),
+                eq("ACTIVATE"),
+                eq(1)
+        )).thenReturn(1);
 
-        assertThatCode(() -> tracker.markDispatched("hub-1", "scenario-1", Instant.now(), actionSpec()))
+        assertThatCode(() -> tracker.markDispatched("hub-1", "scenario-1", timestamp, actionSpec()))
                 .doesNotThrowAnyException();
-    }
-
-    @Test
-    void shouldRethrowNonDuplicateIntegrityViolations() {
-        ActionDispatchRepository repository = mock(ActionDispatchRepository.class);
-        ActionDispatchTracker tracker = new ActionDispatchTracker(repository);
-
-        doThrow(new DataIntegrityViolationException("other integrity violation", new SQLException("check", "23514")))
-                .when(repository).saveAndFlush(any());
-
-        assertThatThrownBy(() -> tracker.markDispatched("hub-1", "scenario-1", Instant.now(), actionSpec()))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        verify(repository).insertIgnore("hub-1", "scenario-1", timestamp, "switch.1", "ACTIVATE", 1);
     }
 
     private ActionSpec actionSpec() {
-        return new ActionSpec("switch.1", ActionTypeAvro.ACTIVATE, 1);
+        return new ActionSpec("switch.1", ActionType.ACTIVATE, 1);
     }
 }
