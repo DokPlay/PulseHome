@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS action_dispatches (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     hub_id VARCHAR NOT NULL,
     scenario_name VARCHAR NOT NULL,
-    snapshot_timestamp TIMESTAMP NOT NULL,
+    snapshot_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     sensor_id VARCHAR NOT NULL,
     action_type VARCHAR NOT NULL,
     action_value INTEGER NOT NULL,

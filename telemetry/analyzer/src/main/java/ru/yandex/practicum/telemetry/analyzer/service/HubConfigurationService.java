@@ -88,7 +88,7 @@ public class HubConfigurationService {
                 .toList();
 
         Map<Long, List<ConditionSpec>> conditionSpecsByScenarioId = scenarioConditionRepository.findAllByScenarioIds(scenarioIds).stream()
-                .collect(Collectors.groupingBy(link -> link.getScenario().getId(), LinkedHashMap::new,
+                .collect(Collectors.groupingBy(link -> link.getId().getScenarioId(), LinkedHashMap::new,
                         Collectors.mapping(link -> new ConditionSpec(
                                 link.getSensor().getId(),
                                 link.getCondition().getType(),
@@ -97,7 +97,7 @@ public class HubConfigurationService {
                         ), Collectors.toList())));
 
         Map<Long, List<ActionSpec>> actionSpecsByScenarioId = scenarioActionRepository.findAllByScenarioIds(scenarioIds).stream()
-                .collect(Collectors.groupingBy(link -> link.getScenario().getId(), LinkedHashMap::new,
+                .collect(Collectors.groupingBy(link -> link.getId().getScenarioId(), LinkedHashMap::new,
                         Collectors.mapping(link -> new ActionSpec(
                                 link.getSensor().getId(),
                                 link.getAction().getType(),
@@ -216,8 +216,8 @@ public class HubConfigurationService {
         List<ScenarioActionLink> actionLinks = scenarioActionRepository.findDetailedBySensorId(sensorId);
 
         Set<Long> affectedScenarioIds = Stream.concat(
-                        conditionLinks.stream().map(link -> link.getScenario().getId()),
-                        actionLinks.stream().map(link -> link.getScenario().getId()))
+                        conditionLinks.stream().map(link -> link.getId().getScenarioId()),
+                        actionLinks.stream().map(link -> link.getId().getScenarioId()))
                 .collect(Collectors.toSet());
 
         if (!affectedScenarioIds.isEmpty()) {
