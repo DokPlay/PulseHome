@@ -32,6 +32,7 @@ class SnapshotProcessorTest {
 
         SensorsSnapshotAvro snapshot = SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(1)
                 .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
                 .setSensorsState(Map.of(
                         "sensor.light.1", SensorStateAvro.newBuilder()
@@ -69,11 +70,13 @@ class SnapshotProcessorTest {
 
         SensorsSnapshotAvro firstSnapshot = SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(1)
                 .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
                 .setSensorsState(Map.of())
                 .build();
         SensorsSnapshotAvro secondSnapshot = SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(2)
                 .setTimestamp(Instant.parse("2024-08-06T15:12:24.157Z"))
                 .setSensorsState(Map.of())
                 .build();

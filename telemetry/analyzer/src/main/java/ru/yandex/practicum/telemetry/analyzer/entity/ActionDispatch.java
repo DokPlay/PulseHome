@@ -16,7 +16,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "action_dispatches", uniqueConstraints = {
         @UniqueConstraint(name = "uk_action_dispatches_snapshot_action",
-                columnNames = {"hub_id", "scenario_name", "snapshot_timestamp", "sensor_id", "action_type", "action_value"})
+                columnNames = {"hub_id", "scenario_name", "snapshot_version", "sensor_id", "action_type", "action_value"})
 })
 public class ActionDispatch {
 
@@ -32,6 +32,9 @@ public class ActionDispatch {
 
     @Column(name = "snapshot_timestamp", nullable = false)
     private Instant snapshotTimestamp;
+
+    @Column(name = "snapshot_version", nullable = false)
+    private Long snapshotVersion;
 
     @Column(name = "sensor_id", nullable = false)
     private String sensorId;
@@ -49,12 +52,14 @@ public class ActionDispatch {
     public ActionDispatch(String hubId,
                           String scenarioName,
                           Instant snapshotTimestamp,
+                          Long snapshotVersion,
                           String sensorId,
                           ActionType actionType,
                           Integer actionValue) {
         this.hubId = hubId;
         this.scenarioName = scenarioName;
         this.snapshotTimestamp = snapshotTimestamp;
+        this.snapshotVersion = snapshotVersion;
         this.sensorId = sensorId;
         this.actionType = actionType;
         this.actionValue = actionValue;
@@ -74,6 +79,10 @@ public class ActionDispatch {
 
     public Instant getSnapshotTimestamp() {
         return snapshotTimestamp;
+    }
+
+    public Long getSnapshotVersion() {
+        return snapshotVersion;
     }
 
     public String getSensorId() {

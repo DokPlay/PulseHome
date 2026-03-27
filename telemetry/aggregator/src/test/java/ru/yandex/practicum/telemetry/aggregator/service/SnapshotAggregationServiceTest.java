@@ -29,6 +29,7 @@ class SnapshotAggregationServiceTest {
 
         assertThat(snapshot).isPresent();
         assertThat(snapshot.orElseThrow().getHubId()).isEqualTo("hub-1");
+        assertThat(snapshot.orElseThrow().getVersion()).isEqualTo(1);
         assertThat(snapshot.orElseThrow().getSensorsState()).containsKey("sensor.motion.1");
     }
 
@@ -63,6 +64,7 @@ class SnapshotAggregationServiceTest {
         service.updateState(first);
         SensorsSnapshotAvro snapshot = service.updateState(second).orElseThrow();
 
+        assertThat(snapshot.getVersion()).isEqualTo(2);
         assertThat(snapshot.getTimestamp()).isEqualTo(Instant.parse("2024-08-06T15:11:25.157Z"));
         LightSensorAvro state = (LightSensorAvro) snapshot.getSensorsState().get("sensor.light.1").getData();
         assertThat(state.getLuminosity()).isEqualTo(12);
@@ -76,7 +78,21 @@ class SnapshotAggregationServiceTest {
         service.updateState(light);
         SensorsSnapshotAvro snapshot = service.updateState(motion).orElseThrow();
 
+        assertThat(snapshot.getVersion()).isEqualTo(2);
         assertThat(snapshot.getSensorsState()).hasSize(2);
+        assertThat(snapshot.getSensorsState()).containsKeys("sensor.light.1", "sensor.motion.1");
+    }
+
+    @Test
+    void shouldKeepHubSnapshotTimestampMonotonicWhenOlderSensorAppears() {
+        SensorEventAvro freshLight = lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:25.157Z"), 60);
+        SensorEventAvro olderMotion = motionEvent("hub-1", "sensor.motion.1", Instant.parse("2024-08-06T15:11:24.157Z"), true);
+
+        service.updateState(freshLight);
+        SensorsSnapshotAvro snapshot = service.updateState(olderMotion).orElseThrow();
+
+        assertThat(snapshot.getVersion()).isEqualTo(2);
+        assertThat(snapshot.getTimestamp()).isEqualTo(Instant.parse("2024-08-06T15:11:25.157Z"));
         assertThat(snapshot.getSensorsState()).containsKeys("sensor.light.1", "sensor.motion.1");
     }
 

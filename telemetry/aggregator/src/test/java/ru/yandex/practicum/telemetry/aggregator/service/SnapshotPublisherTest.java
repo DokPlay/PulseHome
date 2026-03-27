@@ -79,6 +79,7 @@ class SnapshotPublisherTest {
 
         return SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(1)
                 .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
                 .setSensorsState(stateBySensorId)
                 .build();

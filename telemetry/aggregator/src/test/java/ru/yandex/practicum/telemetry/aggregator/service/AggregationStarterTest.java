@@ -34,6 +34,7 @@ class AggregationStarterTest {
         SensorEventAvro event = sensorEvent();
         SensorsSnapshotAvro snapshot = SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(1)
                 .setTimestamp(event.getTimestamp())
                 .setSensorsState(Map.of())
                 .build();

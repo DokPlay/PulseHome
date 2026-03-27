@@ -42,8 +42,8 @@ public class SnapshotAnalyzerService {
         try {
             List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios(snapshot.getHubId());
             if (scenarios.isEmpty()) {
-                log.debug("No scenarios configured for hub snapshot. hubId={}, timestamp={}",
-                        snapshot.getHubId(), snapshot.getTimestamp());
+                log.debug("No scenarios configured for hub snapshot. hubId={}, timestamp={}, version={}",
+                        snapshot.getHubId(), snapshot.getTimestamp(), snapshot.getVersion());
                 return;
             }
 
@@ -53,7 +53,7 @@ public class SnapshotAnalyzerService {
                     .forEach(scenario -> dispatchScenarioActions(snapshot, scenario));
         } finally {
             // Keep only the current snapshot's dispatch progress for the hub to bound dedupe state growth.
-            actionDispatchTracker.pruneOlderSnapshots(snapshot.getHubId(), snapshot.getTimestamp());
+            actionDispatchTracker.pruneOlderSnapshots(snapshot.getHubId(), snapshot.getVersion());
         }
     }
 
@@ -67,7 +67,13 @@ public class SnapshotAnalyzerService {
                     log.debug("Dispatching scenario action. hubId={}, scenario={}, sensorId={}, actionType={}",
                             snapshot.getHubId(), scenario.name(), action.sensorId(), action.type());
                     deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
-                    actionDispatchTracker.markDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
+                    actionDispatchTracker.markDispatched(
+                            snapshot.getHubId(),
+                            scenario.name(),
+                            snapshot.getTimestamp(),
+                            snapshot.getVersion(),
+                            action
+                    );
                 });
     }
 
@@ -75,12 +81,12 @@ public class SnapshotAnalyzerService {
         boolean alreadyDispatched = actionDispatchTracker.isAlreadyDispatched(
                 snapshot.getHubId(),
                 scenario.name(),
-                snapshot.getTimestamp(),
+                snapshot.getVersion(),
                 action
         );
         if (alreadyDispatched) {
-            log.debug("Skipping already dispatched action. hubId={}, scenario={}, sensorId={}, actionType={}",
-                    snapshot.getHubId(), scenario.name(), action.sensorId(), action.type());
+            log.debug("Skipping already dispatched action. hubId={}, scenario={}, sensorId={}, actionType={}, snapshotVersion={}",
+                    snapshot.getHubId(), scenario.name(), action.sensorId(), action.type(), snapshot.getVersion());
         }
         return !alreadyDispatched;
     }

@@ -41,7 +41,7 @@ class SnapshotAnalyzerServiceTest {
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
-        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
     @Test
@@ -64,13 +64,13 @@ class SnapshotAnalyzerServiceTest {
                         List.of(action)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getTimestamp(), action)).thenReturn(false);
+        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), action)).thenReturn(false);
 
         service.analyze(snapshot);
 
         verify(dispatcher).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), action);
-        verify(actionDispatchTracker).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), action);
-        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+        verify(actionDispatchTracker).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), action);
+        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
     @Test
@@ -94,7 +94,7 @@ class SnapshotAnalyzerServiceTest {
 
         verify(dispatcher, never()).dispatch("hub-1", "hall-light", snapshot.getTimestamp(),
                 new ActionSpec("switch.1", ActionType.ACTIVATE, 1));
-        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
     @Test
@@ -118,9 +118,9 @@ class SnapshotAnalyzerServiceTest {
                         List.of(firstAction, secondAction)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getTimestamp(), firstAction))
+        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), firstAction))
                 .thenReturn(false, true);
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getTimestamp(), secondAction))
+        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), secondAction))
                 .thenReturn(false, false);
         org.mockito.Mockito.doThrow(new RetryableActionDispatchException("retryable", new RuntimeException()))
                 .doNothing()
@@ -133,14 +133,15 @@ class SnapshotAnalyzerServiceTest {
 
         verify(dispatcher, times(1)).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), firstAction);
         verify(dispatcher, times(2)).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
-        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), firstAction);
-        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
-        verify(actionDispatchTracker, times(2)).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), firstAction);
+        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), secondAction);
+        verify(actionDispatchTracker, times(2)).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
     private SensorsSnapshotAvro snapshot() {
         return SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
+                .setVersion(7)
                 .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
                 .setSensorsState(Map.of(
                         "sensor.light.1", SensorStateAvro.newBuilder()

@@ -18,22 +18,27 @@ public class ActionDispatchTracker {
     }
 
     @Transactional(readOnly = true)
-    public boolean isAlreadyDispatched(String hubId, String scenarioName, Instant snapshotTimestamp, ActionSpec actionSpec) {
-        return actionDispatchRepository.existsByHubIdAndScenarioNameAndSnapshotTimestampAndSensorIdAndActionTypeAndActionValue(
+    public boolean isAlreadyDispatched(String hubId, String scenarioName, long snapshotVersion, ActionSpec actionSpec) {
+        return actionDispatchRepository.existsByHubIdAndScenarioNameAndSnapshotVersionAndSensorIdAndActionTypeAndActionValue(
                 hubId,
                 scenarioName,
-                snapshotTimestamp,
+                snapshotVersion,
                 actionSpec.sensorId(),
                 actionSpec.type(),
                 normalizeActionValue(actionSpec)
         );
     }
 
-    public void markDispatched(String hubId, String scenarioName, Instant snapshotTimestamp, ActionSpec actionSpec) {
+    public void markDispatched(String hubId,
+                               String scenarioName,
+                               Instant snapshotTimestamp,
+                               long snapshotVersion,
+                               ActionSpec actionSpec) {
         actionDispatchRepository.insertIgnore(
                 hubId,
                 scenarioName,
                 snapshotTimestamp,
+                snapshotVersion,
                 actionSpec.sensorId(),
                 actionSpec.type().name(),
                 normalizeActionValue(actionSpec)
@@ -41,8 +46,8 @@ public class ActionDispatchTracker {
     }
 
     @Transactional
-    public void pruneOlderSnapshots(String hubId, Instant snapshotTimestamp) {
-        actionDispatchRepository.deleteByHubIdAndSnapshotTimestampBefore(hubId, snapshotTimestamp);
+    public void pruneOlderSnapshots(String hubId, long snapshotVersion) {
+        actionDispatchRepository.deleteByHubIdAndSnapshotVersionLessThan(hubId, snapshotVersion);
     }
 
     private Integer normalizeActionValue(ActionSpec actionSpec) {

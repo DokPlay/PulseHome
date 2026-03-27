@@ -40,8 +40,10 @@ public class SnapshotAggregationService {
         Map<String, SensorStateAvro> updatedStates = new HashMap<>(snapshot.getSensorsState());
         updatedStates.put(event.getId(), newState);
 
+        Instant updatedSnapshotTimestamp = maxTimestamp(snapshot.getTimestamp(), eventTimestamp);
         SensorsSnapshotAvro updatedSnapshot = SensorsSnapshotAvro.newBuilder(snapshot)
-                .setTimestamp(eventTimestamp)
+                .setVersion(snapshot.getVersion() + 1)
+                .setTimestamp(updatedSnapshotTimestamp)
                 .setSensorsState(updatedStates)
                 .build();
         snapshots.put(event.getHubId(), updatedSnapshot);
@@ -51,9 +53,17 @@ public class SnapshotAggregationService {
     private SensorsSnapshotAvro createEmptySnapshot(String hubId, Instant timestamp) {
         return SensorsSnapshotAvro.newBuilder()
                 .setHubId(hubId)
+                .setVersion(0)
                 .setTimestamp(timestamp)
                 .setSensorsState(new HashMap<>())
                 .build();
+    }
+
+    private Instant maxTimestamp(Instant currentTimestamp, Instant candidateTimestamp) {
+        if (currentTimestamp.isAfter(candidateTimestamp)) {
+            return currentTimestamp;
+        }
+        return candidateTimestamp;
     }
 
     private Instant normalizeTimestamp(Instant timestamp) {
