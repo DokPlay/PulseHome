@@ -25,6 +25,25 @@ import static org.mockito.Mockito.when;
 class SnapshotAnalyzerServiceTest {
 
     @Test
+    void shouldPruneDispatchStateEvenWhenNoScenariosExist() {
+        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
+        ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
+        SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
+        SensorsSnapshotAvro snapshot = snapshot();
+
+        when(hubConfigurationService.getScenarios("hub-1")).thenReturn(List.of());
+
+        service.analyze(snapshot);
+
+        verify(dispatcher, never()).dispatch(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+    }
+
+    @Test
     void shouldDispatchActionsWhenAllConditionsMatch() {
         HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
@@ -115,7 +134,7 @@ class SnapshotAnalyzerServiceTest {
         verify(dispatcher, times(2)).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
         verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), firstAction);
         verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
-        verify(actionDispatchTracker, times(1)).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
+        verify(actionDispatchTracker, times(2)).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
     }
 
     private SensorsSnapshotAvro snapshot() {

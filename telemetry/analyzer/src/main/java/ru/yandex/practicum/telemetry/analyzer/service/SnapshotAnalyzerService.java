@@ -35,29 +35,31 @@ public class SnapshotAnalyzerService {
     }
 
     public void analyze(SensorsSnapshotAvro snapshot) {
-        List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios(snapshot.getHubId());
-        if (scenarios.isEmpty()) {
-            return;
-        }
-
-        Map<String, SensorStateAvro> sensorStates = snapshot.getSensorsState();
-        for (ScenarioDefinition scenario : scenarios) {
-            if (!matchesAllConditions(sensorStates, scenario.conditions())) {
-                continue;
+        try {
+            List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios(snapshot.getHubId());
+            if (scenarios.isEmpty()) {
+                return;
             }
 
-            for (ActionSpec action : scenario.actions()) {
-                if (actionDispatchTracker.isAlreadyDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action)) {
+            Map<String, SensorStateAvro> sensorStates = snapshot.getSensorsState();
+            for (ScenarioDefinition scenario : scenarios) {
+                if (!matchesAllConditions(sensorStates, scenario.conditions())) {
                     continue;
                 }
 
-                deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
-                actionDispatchTracker.markDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
-            }
-        }
+                for (ActionSpec action : scenario.actions()) {
+                    if (actionDispatchTracker.isAlreadyDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action)) {
+                        continue;
+                    }
 
-        // Keep only the current snapshot's dispatch progress for the hub to bound dedupe state growth.
-        actionDispatchTracker.pruneOlderSnapshots(snapshot.getHubId(), snapshot.getTimestamp());
+                    deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
+                    actionDispatchTracker.markDispatched(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
+                }
+            }
+        } finally {
+            // Keep only the current snapshot's dispatch progress for the hub to bound dedupe state growth.
+            actionDispatchTracker.pruneOlderSnapshots(snapshot.getHubId(), snapshot.getTimestamp());
+        }
     }
 
     private boolean matchesAllConditions(Map<String, SensorStateAvro> sensorStates, List<ConditionSpec> conditions) {
