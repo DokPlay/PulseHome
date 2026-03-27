@@ -66,7 +66,7 @@
 
 **Upgrade Goals Achieved**:
 - ✅ Java 21 → 25 (latest LTS)
-- ✅ Spring Boot 3.3.5 → 3.5.5 (derived, required for Java 25 ASM support)
+- ✅ Spring Boot 3.3.5 → 3.5.13 (derived, required for Java 25 support in the resolved dependency stack)
 
 ## Tech Stack Changes
 
@@ -89,9 +89,9 @@
 | Dependency            | Before   | After    | Reason                                                      |
 | --------------------- | -------- | -------- | ----------------------------------------------------------- |
 | Java (source/target)  | 21       | 25 (LTS) | User requested upgrade to latest LTS                        |
-| Spring Boot           | 3.3.5    | 3.5.5    | Required: Spring Framework 6.1.x ASM 9.6 can't parse Java 25 class version 69 |
-| Spring Framework      | 6.1.x    | 6.2.10   | Via Spring Boot 3.5.5 BOM (ASM compatible with Java 25)     |
-| Byte Buddy            | 1.14.19  | 1.17.7   | Via Spring Boot 3.5.5 BOM; 1.17.7 natively supports Java 25 |
+| Spring Boot           | 3.3.5    | 3.5.13   | Required: newer Spring stack compatible with Java 25        |
+| Spring Framework      | 6.1.x    | 6.2.17   | Resolved via Spring Boot 3.5.13 BOM                         |
+| Byte Buddy            | 1.14.19  | 1.17.8   | Resolved in test scope via Spring Boot 3.5.13 stack         |
 | maven-surefire-plugin | 3.2.5    | 3.2.5    | Added `<argLine>` for dynamic agent loading (JVM warning suppression) |
 
 ## Commits
@@ -122,11 +122,11 @@
 
 - **Spring Framework ASM incompatibility with Java 25** (Critical)
   - **Issue**: Spring Boot 3.3.5 bundles Spring Framework 6.1.x / ASM 9.6. ASM 9.6 max Java 23 (class v65). Java 25 produces class v69. `EventControllerTest` failed with `IllegalArgumentException: Unsupported class file major version 69`.
-  - **Resolution**: Upgraded `spring-boot.version` 3.3.5 → **3.5.5** (Spring Framework 6.2.10 with compatible ASM). 1 file changed: root `pom.xml`.
+  - **Resolution**: Upgraded `spring-boot.version` 3.3.5 → **3.5.13**. The resolved Spring Framework stack moved to **6.2.17**, which is compatible with Java 25 class files. 1 file changed: root `pom.xml`.
 
 - **Byte Buddy incompatibility with Java 25** (Critical)
   - **Issue**: Byte Buddy 1.14.19 (in SB 3.3.5) only officially supports through Java 23. Mockito `@Mock` of `KafkaTemplate` failed in `CollectorEventServiceTest` (6 tests).
-  - **Resolution**: Spring Boot 3.5.5 brings Byte Buddy **1.17.7** (native Java 25 support). Added `-Dnet.bytebuddy.experimental=true` as belt-and-suspenders in surefire `<argLine>`.
+  - **Resolution**: The upgraded Spring Boot 3.5.13 stack resolves Byte Buddy to **1.17.8**, which supports Java 25. Added `-Dnet.bytebuddy.experimental=true` as belt-and-suspenders in surefire `<argLine>`.
 
 - **JVM dynamic agent loading warnings**
   - **Issue**: Java 19+ warns that dynamic agent loading (Mockito/Byte Buddy) will be restricted in future JVM releases.
@@ -155,7 +155,7 @@ None. All upgrade goals achieved without limitations.
 
 **Scanned**: 17 direct dependencies | **Vulnerabilities Found**: 0
 
-Dependencies scanned: `avro:1.11.5`, `kafka-clients:3.9.1`, `spring-boot:3.5.5` (starters), `spring-kafka:3.3.9`, `protobuf-java:3.25.5`, `grpc:1.68.1`, `flyway-core:11.7.2`, `postgresql:42.7.7`, `h2:2.3.232`, `grpc-client-spring-boot-starter:3.1.0.RELEASE`.
+Dependencies scanned: `avro:1.11.5`, `kafka-clients:3.9.1`, `spring-boot:3.5.13` (starters), `spring-kafka:3.3.14`, `protobuf-java:3.25.5`, `grpc:1.80.0`, `flyway-core:11.7.2`, `postgresql:42.7.7`, `h2:2.3.232`, `grpc-client-spring-boot-starter:3.1.0.RELEASE`.
 
 ## Test Coverage
 
