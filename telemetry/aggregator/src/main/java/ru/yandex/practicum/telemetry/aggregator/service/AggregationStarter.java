@@ -54,6 +54,7 @@ public class AggregationStarter {
             // Shutdown is expected to interrupt the poll loop through consumer.wakeup().
         } catch (Exception exception) {
             log.error("Error while aggregating sensor events", exception);
+            throw new IllegalStateException("Fatal error while aggregating sensor events", exception);
         } finally {
             try {
                 snapshotPublisher.flush();

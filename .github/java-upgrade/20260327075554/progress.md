@@ -106,15 +106,15 @@
 - **Step 4: Final Validation**
   - **Status**: ✅ Completed
   - **Changes Made**:
-    - `pom.xml` root: `spring-boot.version` 3.3.5 → 3.5.5 (Spring Framework 6.2.10, ASM with Java 25 class version 69 support, Byte Buddy 1.17.7)
+    - `pom.xml` root: `spring-boot.version` 3.3.5 → 3.5.13 (resolved Spring Framework 6.2.17, Byte Buddy 1.17.8)
     - `pom.xml` root: Added surefire argLine `-Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading`
     - All 63 tests pass with JDK 25
   - **Review Code Changes**:
     - Sufficiency: ✅ All required changes present — Spring Boot upgrade fixes ASM + Byte Buddy Java 25 incompatibility; surefire argLine enables dynamic agent loading
     - Necessity: ✅ All changes necessary
-      - Spring Boot 3.5.5: required — Spring Framework 6.1.x (SB 3.3.5) uses ASM 9.6 which cannot parse class version 69 (Java 25); Spring Framework 6.2.10 (SB 3.5.5) includes compatible ASM and Byte Buddy 1.17.7
+      - Spring Boot 3.5.13: required — Spring Framework 6.1.x (SB 3.3.5) uses ASM 9.6 which cannot parse class version 69 (Java 25); the resolved Spring Framework 6.2.17 stack includes compatible support and Byte Buddy 1.17.8
       - `-XX:+EnableDynamicAgentLoading`: required for Mockito inline mock agent loading on Java 25
-      - `-Dnet.bytebuddy.experimental=true`: belt-and-suspenders (Byte Buddy 1.17.7 natively supports Java 25, this is harmless)
+      - `-Dnet.bytebuddy.experimental=true`: belt-and-suspenders (Byte Buddy 1.17.8 natively supports Java 25, this is harmless)
       - Functional Behavior: ✅ Preserved — business logic unchanged, Spring Boot 3.x → 3.5.x minor upgrade, no API breaks
       - Security Controls: ✅ Preserved — auth/authz configs unchanged, no security-sensitive modifications
   - **Verification**:
@@ -122,7 +122,7 @@
     - JDK: `C:\Users\serrg\AppData\Roaming\Code\User\globalStorage\pleiades.java-extension-pack-jdk\java\latest\bin`
     - Build tool: `C:\tools\apache-maven-3.9.11\bin\mvn`
     - Result: ✅ BUILD SUCCESS | Tests: 63/63 passed (0 failures, 0 errors) — matches baseline 100%
-    - Notes: First attempt failed (SB 3.3.5 ASM 9.6 + Byte Buddy 1.14.x incompatible with Java 25); fixed by upgrading SB to 3.5.5
+    - Notes: First attempt failed (SB 3.3.5 ASM 9.6 + Byte Buddy 1.14.x incompatible with Java 25); fixed by upgrading SB to 3.5.13
   - **Deferred Work**: None — all TODOs resolved
   - **Commit**: 668b795 - Step 4: Final Validation - Compile: SUCCESS | Tests: 63/63 passed
 

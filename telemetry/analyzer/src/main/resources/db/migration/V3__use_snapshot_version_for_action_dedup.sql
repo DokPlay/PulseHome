@@ -5,7 +5,7 @@ UPDATE action_dispatches dispatch
 SET snapshot_version = ranked.snapshot_version
 FROM (
     SELECT id,
-           ROW_NUMBER() OVER (PARTITION BY hub_id ORDER BY snapshot_timestamp, id) AS snapshot_version
+           DENSE_RANK() OVER (PARTITION BY hub_id ORDER BY snapshot_timestamp) AS snapshot_version
     FROM action_dispatches
 ) ranked
 WHERE dispatch.id = ranked.id;
