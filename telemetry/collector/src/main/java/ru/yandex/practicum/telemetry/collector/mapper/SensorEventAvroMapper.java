@@ -7,6 +7,7 @@ import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
+import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.ClimateSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.LightSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.MotionSensorEvent;
@@ -31,41 +32,53 @@ public class SensorEventAvroMapper {
     }
 
     private Object mapPayload(SensorEvent event, Instant normalizedTimestamp) {
-        if (event instanceof ClimateSensorEvent climateSensorEvent) {
-            return ClimateSensorAvro.newBuilder()
-                    .setTemperatureC(climateSensorEvent.getTemperatureC())
-                    .setHumidity(climateSensorEvent.getHumidity())
-                    .setCo2Level(climateSensorEvent.getCo2Level())
-                    .build();
-        }
-        if (event instanceof LightSensorEvent lightSensorEvent) {
-            return LightSensorAvro.newBuilder()
-                    .setLinkQuality(lightSensorEvent.getLinkQuality())
-                    .setLuminosity(lightSensorEvent.getLuminosity())
-                    .build();
-        }
-        if (event instanceof MotionSensorEvent motionSensorEvent) {
-            return MotionSensorAvro.newBuilder()
-                    .setLinkQuality(motionSensorEvent.getLinkQuality())
-                    .setMotion(motionSensorEvent.getMotion())
-                    .setVoltage(motionSensorEvent.getVoltage())
-                    .build();
-        }
-        if (event instanceof SwitchSensorEvent switchSensorEvent) {
-            return SwitchSensorAvro.newBuilder()
-                    .setState(switchSensorEvent.getState())
-                    .build();
-        }
-        if (event instanceof TemperatureSensorEvent temperatureSensorEvent) {
-            return TemperatureSensorAvro.newBuilder()
-                    .setId(temperatureSensorEvent.getId())
-                    .setHubId(temperatureSensorEvent.getHubId())
-                    .setTimestamp(normalizedTimestamp)
-                    .setTemperatureC(temperatureSensorEvent.getTemperatureC())
-                    .setTemperatureF(temperatureSensorEvent.getTemperatureF())
-                    .build();
-        }
-        throw new IllegalStateException("Unsupported sensor event type: " + event.getClass().getName());
+        SensorEventType eventType = event.getType();
+        return switch (eventType) {
+            case CLIMATE_SENSOR_EVENT -> mapClimatePayload((ClimateSensorEvent) event);
+            case LIGHT_SENSOR_EVENT -> mapLightPayload((LightSensorEvent) event);
+            case MOTION_SENSOR_EVENT -> mapMotionPayload((MotionSensorEvent) event);
+            case SWITCH_SENSOR_EVENT -> mapSwitchPayload((SwitchSensorEvent) event);
+            case TEMPERATURE_SENSOR_EVENT -> mapTemperaturePayload((TemperatureSensorEvent) event, normalizedTimestamp);
+        };
+    }
+
+    private ClimateSensorAvro mapClimatePayload(ClimateSensorEvent event) {
+        return ClimateSensorAvro.newBuilder()
+                .setTemperatureC(event.getTemperatureC())
+                .setHumidity(event.getHumidity())
+                .setCo2Level(event.getCo2Level())
+                .build();
+    }
+
+    private LightSensorAvro mapLightPayload(LightSensorEvent event) {
+        return LightSensorAvro.newBuilder()
+                .setLinkQuality(event.getLinkQuality())
+                .setLuminosity(event.getLuminosity())
+                .build();
+    }
+
+    private MotionSensorAvro mapMotionPayload(MotionSensorEvent event) {
+        return MotionSensorAvro.newBuilder()
+                .setLinkQuality(event.getLinkQuality())
+                .setMotion(event.getMotion())
+                .setVoltage(event.getVoltage())
+                .build();
+    }
+
+    private SwitchSensorAvro mapSwitchPayload(SwitchSensorEvent event) {
+        return SwitchSensorAvro.newBuilder()
+                .setState(event.getState())
+                .build();
+    }
+
+    private TemperatureSensorAvro mapTemperaturePayload(TemperatureSensorEvent event, Instant normalizedTimestamp) {
+        return TemperatureSensorAvro.newBuilder()
+                .setId(event.getId())
+                .setHubId(event.getHubId())
+                .setTimestamp(normalizedTimestamp)
+                .setTemperatureC(event.getTemperatureC())
+                .setTemperatureF(event.getTemperatureF())
+                .build();
     }
 
     private Instant normalizeTimestamp(Instant timestamp) {
