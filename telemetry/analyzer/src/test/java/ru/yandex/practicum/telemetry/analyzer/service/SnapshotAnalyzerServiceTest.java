@@ -1,14 +1,15 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionOperationAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionTypeAvro;
 import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionOperation;
 import ru.yandex.practicum.telemetry.analyzer.model.ConditionSpec;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionType;
 import ru.yandex.practicum.telemetry.analyzer.model.ScenarioDefinition;
 
 import java.time.Instant;
@@ -50,15 +51,15 @@ class SnapshotAnalyzerServiceTest {
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
         SensorsSnapshotAvro snapshot = snapshot();
-        ActionSpec action = new ActionSpec("switch.1", ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro.ACTIVATE, 1);
+        ActionSpec action = new ActionSpec("switch.1", ActionType.ACTIVATE, 1);
 
         when(hubConfigurationService.getScenarios("hub-1")).thenReturn(List.of(
                 new ScenarioDefinition(
                         "hub-1",
                         "hall-light",
                         List.of(
-                                new ConditionSpec("sensor.light.1", ConditionTypeAvro.LUMINOSITY, ConditionOperationAvro.LOWER_THAN, 20),
-                                new ConditionSpec("sensor.motion.1", ConditionTypeAvro.MOTION, ConditionOperationAvro.EQUALS, 1)
+                                new ConditionSpec("sensor.light.1", ConditionType.LUMINOSITY, ConditionOperation.LOWER_THAN, 20),
+                                new ConditionSpec("sensor.motion.1", ConditionType.MOTION, ConditionOperation.EQUALS, 1)
                         ),
                         List.of(action)
                 )
@@ -84,15 +85,15 @@ class SnapshotAnalyzerServiceTest {
                 new ScenarioDefinition(
                         "hub-1",
                         "hall-light",
-                        List.of(new ConditionSpec("sensor.light.1", ConditionTypeAvro.LUMINOSITY, ConditionOperationAvro.GREATER_THAN, 20)),
-                        List.of(new ActionSpec("switch.1", ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro.ACTIVATE, 1))
+                        List.of(new ConditionSpec("sensor.light.1", ConditionType.LUMINOSITY, ConditionOperation.GREATER_THAN, 20)),
+                        List.of(new ActionSpec("switch.1", ActionType.ACTIVATE, 1))
                 )
         ));
 
         service.analyze(snapshot);
 
         verify(dispatcher, never()).dispatch("hub-1", "hall-light", snapshot.getTimestamp(),
-                new ActionSpec("switch.1", ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro.ACTIVATE, 1));
+                new ActionSpec("switch.1", ActionType.ACTIVATE, 1));
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getTimestamp());
     }
 
@@ -103,16 +104,16 @@ class SnapshotAnalyzerServiceTest {
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
         SensorsSnapshotAvro snapshot = snapshot();
-        ActionSpec firstAction = new ActionSpec("switch.1", ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro.ACTIVATE, 1);
-        ActionSpec secondAction = new ActionSpec("switch.2", ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro.INVERSE, 1);
+        ActionSpec firstAction = new ActionSpec("switch.1", ActionType.ACTIVATE, 1);
+        ActionSpec secondAction = new ActionSpec("switch.2", ActionType.INVERSE, 1);
 
         when(hubConfigurationService.getScenarios("hub-1")).thenReturn(List.of(
                 new ScenarioDefinition(
                         "hub-1",
                         "hall-light",
                         List.of(
-                                new ConditionSpec("sensor.light.1", ConditionTypeAvro.LUMINOSITY, ConditionOperationAvro.LOWER_THAN, 20),
-                                new ConditionSpec("sensor.motion.1", ConditionTypeAvro.MOTION, ConditionOperationAvro.EQUALS, 1)
+                                new ConditionSpec("sensor.light.1", ConditionType.LUMINOSITY, ConditionOperation.LOWER_THAN, 20),
+                                new ConditionSpec("sensor.motion.1", ConditionType.MOTION, ConditionOperation.EQUALS, 1)
                         ),
                         List.of(firstAction, secondAction)
                 )

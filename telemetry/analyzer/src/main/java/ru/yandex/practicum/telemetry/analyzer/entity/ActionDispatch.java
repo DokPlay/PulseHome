@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
 
 import java.time.Instant;
 
@@ -38,7 +38,7 @@ public class ActionDispatch {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action_type", nullable = false)
-    private ActionTypeAvro actionType;
+    private ActionType actionType;
 
     @Column(name = "action_value", nullable = false)
     private Integer actionValue;
@@ -50,7 +50,7 @@ public class ActionDispatch {
                           String scenarioName,
                           Instant snapshotTimestamp,
                           String sensorId,
-                          ActionTypeAvro actionType,
+                          ActionType actionType,
                           Integer actionValue) {
         this.hubId = hubId;
         this.scenarioName = scenarioName;
@@ -80,7 +80,7 @@ public class ActionDispatch {
         return sensorId;
     }
 
-    public ActionTypeAvro getActionType() {
+    public ActionType getActionType() {
         return actionType;
     }
 

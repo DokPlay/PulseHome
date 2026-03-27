@@ -2,9 +2,6 @@ package ru.yandex.practicum.telemetry.analyzer.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionOperationAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionTypeAvro;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceActionAvro;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
@@ -12,6 +9,7 @@ import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
+import ru.yandex.practicum.telemetry.analyzer.mapper.ContractEnumMapper;
 import ru.yandex.practicum.telemetry.analyzer.entity.Action;
 import ru.yandex.practicum.telemetry.analyzer.entity.Condition;
 import ru.yandex.practicum.telemetry.analyzer.entity.Scenario;
@@ -133,8 +131,8 @@ public class HubConfigurationService {
         for (ScenarioConditionAvro conditionEvent : conditions) {
             Sensor sensor = upsertSensor(conditionEvent.getSensorId(), hubId);
             Condition condition = conditionRepository.save(new Condition(
-                    conditionEvent.getType(),
-                    conditionEvent.getOperation(),
+                    ContractEnumMapper.toConditionType(conditionEvent.getType()),
+                    ContractEnumMapper.toConditionOperation(conditionEvent.getOperation()),
                     extractConditionValue(conditionEvent)
             ));
             ScenarioConditionLink link = new ScenarioConditionLink(
@@ -158,7 +156,7 @@ public class HubConfigurationService {
         for (DeviceActionAvro actionEvent : actions) {
             Sensor sensor = upsertSensor(actionEvent.getSensorId(), hubId);
             Action action = actionRepository.save(new Action(
-                    actionEvent.getType(),
+                    ContractEnumMapper.toActionType(actionEvent.getType()),
                     actionEvent.getValue() == null ? null : actionEvent.getValue()
             ));
             ScenarioActionLink link = new ScenarioActionLink(

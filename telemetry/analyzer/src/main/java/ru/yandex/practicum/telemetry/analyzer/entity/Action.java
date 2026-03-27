@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
 
 @Entity
 @Table(name = "actions")
@@ -20,7 +20,7 @@ public class Action {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ActionTypeAvro type;
+    private ActionType type;
 
     @Column(name = "\"value\"")
     private Integer value;
@@ -28,7 +28,7 @@ public class Action {
     public Action() {
     }
 
-    public Action(ActionTypeAvro type, Integer value) {
+    public Action(ActionType type, Integer value) {
         this.type = type;
         this.value = value;
     }
@@ -37,11 +37,11 @@ public class Action {
         return id;
     }
 
-    public ActionTypeAvro getType() {
+    public ActionType getType() {
         return type;
     }
 
-    public void setType(ActionTypeAvro type) {
+    public void setType(ActionType type) {
         this.type = type;
     }
 
