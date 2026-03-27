@@ -193,6 +193,7 @@ public class HubConfigurationService {
     }
 
     private Sensor upsertSensor(String sensorId, String hubId) {
+        // The course schema keys sensors by id, so a cross-hub collision is treated as invalid input.
         Optional<Sensor> sensorOptional = sensorRepository.findById(sensorId);
         if (sensorOptional.isPresent()) {
             Sensor sensor = sensorOptional.get();
