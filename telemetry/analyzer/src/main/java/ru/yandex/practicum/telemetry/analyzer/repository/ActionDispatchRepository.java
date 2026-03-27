@@ -19,6 +19,7 @@ public interface ActionDispatchRepository extends JpaRepository<ActionDispatch, 
                 hub_id,
                 scenario_name,
                 snapshot_timestamp,
+                snapshot_version,
                 sensor_id,
                 action_type,
                 action_value
@@ -26,28 +27,30 @@ public interface ActionDispatchRepository extends JpaRepository<ActionDispatch, 
                 :hubId,
                 :scenarioName,
                 :snapshotTimestamp,
+                :snapshotVersion,
                 :sensorId,
                 :actionType,
                 :actionValue
             )
-            on conflict (hub_id, scenario_name, snapshot_timestamp, sensor_id, action_type, action_value)
+            on conflict (hub_id, scenario_name, snapshot_version, sensor_id, action_type, action_value)
             do nothing
             """, nativeQuery = true)
     int insertIgnore(@Param("hubId") String hubId,
                      @Param("scenarioName") String scenarioName,
                      @Param("snapshotTimestamp") Instant snapshotTimestamp,
+                     @Param("snapshotVersion") Long snapshotVersion,
                      @Param("sensorId") String sensorId,
                      @Param("actionType") String actionType,
                      @Param("actionValue") Integer actionValue);
 
-    boolean existsByHubIdAndScenarioNameAndSnapshotTimestampAndSensorIdAndActionTypeAndActionValue(
+    boolean existsByHubIdAndScenarioNameAndSnapshotVersionAndSensorIdAndActionTypeAndActionValue(
             String hubId,
             String scenarioName,
-            Instant snapshotTimestamp,
+            Long snapshotVersion,
             String sensorId,
             ActionType actionType,
             Integer actionValue
     );
 
-    void deleteByHubIdAndSnapshotTimestampBefore(String hubId, Instant snapshotTimestamp);
+    void deleteByHubIdAndSnapshotVersionLessThan(String hubId, Long snapshotVersion);
 }
