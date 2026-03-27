@@ -20,12 +20,14 @@
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <spring-boot.version>3.5.6</spring-boot.version>
+        <spring-boot.version>3.5.13</spring-boot.version>
         <avro.version>1.11.5</avro.version>
         <protobuf.version>3.25.5</protobuf.version>
-        <grpc.version>1.74.0</grpc.version>
+        <grpc.version>1.80.0</grpc.version>
         <grpc.spring.boot.version>3.1.0.RELEASE</grpc.spring.boot.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <!-- CVE fix: GHSA-72hv-8253-57qq (async parser DoS) - patched in 2.21.1+, no 2.19.x patch exists -->
+        <jackson-bom.version>2.21.2</jackson-bom.version>
     </properties>
 
     <dependencyManagement>
@@ -37,12 +39,25 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <!-- CVE fixes: explicit version overrides -->
-            <!-- GHSA-72hv-8253-57qq: jackson-core async parser DoS -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>2.19.3</version>
+                <version>${jackson-bom.version}</version>
             </dependency>
             <!-- CVE-2025-48734: commons-beanutils Improper Access Control -->
             <dependency>
@@ -50,11 +65,35 @@
                 <artifactId>commons-beanutils</artifactId>
                 <version>1.11.0</version>
             </dependency>
-            <!-- CVE-2025-12183, CVE-2025-66566: lz4-java out-of-bounds / info leak -->
+            <!-- CVE-2025-12183, CVE-2025-66566: lz4-java out-of-bounds / info leak - patched in 1.10.1
+                 kafka-clients and transitive kafka deps use org.lz4:lz4-java (max 1.8.1, still vulnerable).
+                 Replace with at.yawk.lz4:lz4-java (same classes, CVE fix in 1.10.1+). -->
             <dependency>
-                <groupId>org.lz4</groupId>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>3.9.1</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.kafka</groupId>
+                <artifactId>spring-kafka-test</artifactId>
+                <version>3.3.10</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
-                <version>1.8.1</version>
+                <version>1.10.1</version>
             </dependency>
             <!-- CVE-2026-24308, CVE-2026-24281: ZooKeeper config exposure / hostname bypass -->
             <dependency>
@@ -83,7 +122,7 @@
                 <artifactId>tomcat-embed-websocket</artifactId>
                 <version>10.1.52</version>
             </dependency>
-            <!-- CVE-2025-55163: grpc-netty-shaded MadeYouReset HTTP/2 DDoS -->
+            <!-- CVE-2025-55163: grpc-netty-shaded MadeYouReset HTTP/2 DDoS - patched in 1.75.0+ -->
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty-shaded</artifactId>

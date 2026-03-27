@@ -15,8 +15,6 @@ import ru.yandex.practicum.telemetry.analyzer.config.AnalyzerKafkaProperties;
 import java.time.Instant;
 import java.util.Map;
 import java.util.List;
-import java.util.HashMap;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;

@@ -8,8 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionOperationAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ConditionTypeAvro;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionOperation;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionType;
 
 @Entity
 @Table(name = "conditions")
@@ -21,11 +21,11 @@ public class Condition {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ConditionTypeAvro type;
+    private ConditionType type;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ConditionOperationAvro operation;
+    private ConditionOperation operation;
 
     @Column(name = "\"value\"")
     private Integer value;
@@ -33,7 +33,7 @@ public class Condition {
     public Condition() {
     }
 
-    public Condition(ConditionTypeAvro type, ConditionOperationAvro operation, Integer value) {
+    public Condition(ConditionType type, ConditionOperation operation, Integer value) {
         this.type = type;
         this.operation = operation;
         this.value = value;
@@ -43,19 +43,19 @@ public class Condition {
         return id;
     }
 
-    public ConditionTypeAvro getType() {
+    public ConditionType getType() {
         return type;
     }
 
-    public void setType(ConditionTypeAvro type) {
+    public void setType(ConditionType type) {
         this.type = type;
     }
 
-    public ConditionOperationAvro getOperation() {
+    public ConditionOperation getOperation() {
         return operation;
     }
 
-    public void setOperation(ConditionOperationAvro operation) {
+    public void setOperation(ConditionOperation operation) {
         this.operation = operation;
     }
 
