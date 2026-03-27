@@ -2,6 +2,7 @@ package ru.yandex.practicum.telemetry.aggregator.service;
 
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -9,7 +10,9 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
 import ru.yandex.practicum.telemetry.serialization.AvroBinarySerializer;
 
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 @Component
 public class SnapshotPublisher {
@@ -25,24 +28,24 @@ public class SnapshotPublisher {
         this.properties = properties;
     }
 
-    public void publish(SensorsSnapshotAvro snapshot) {
+    public PendingSnapshotPublish publish(SensorsSnapshotAvro snapshot) {
         String topic = properties.getTopics().getSnapshots();
         String key = snapshot.getHubId();
         byte[] payload = AvroBinarySerializer.serialize(snapshot);
 
         try {
-            producer.send(new ProducerRecord<>(topic, key, payload)).get();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            log.warn("Snapshot publish interrupted. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
-            throw new SnapshotPublishException(buildFailureMessage("Snapshot publish interrupted", topic, key, exception), exception);
-        } catch (ExecutionException exception) {
-            log.error("Snapshot publish failed. topic={}, key={}, payloadBytes={}", topic, key, payload.length, exception);
-            throw new SnapshotPublishException(buildFailureMessage("Failed to publish snapshot to Kafka", topic, key, exception), exception);
+            Future<RecordMetadata> publishFuture = producer.send(new ProducerRecord<>(topic, key, payload));
+            return new PendingSnapshotPublish(topic, key, payload.length, publishFuture);
         } catch (RuntimeException exception) {
-            log.error("Snapshot publish failed before acknowledgement wait. topic={}, key={}, payloadBytes={}",
+            log.error("Snapshot publish failed before producer accepted the record. topic={}, key={}, payloadBytes={}",
                     topic, key, payload.length, exception);
             throw new SnapshotPublishException(buildFailureMessage("Failed to publish snapshot to Kafka", topic, key, exception), exception);
+        }
+    }
+
+    public void awaitPublications(List<PendingSnapshotPublish> pendingPublishes) {
+        for (PendingSnapshotPublish pendingPublish : pendingPublishes) {
+            awaitPublication(pendingPublish);
         }
     }
 
@@ -52,6 +55,27 @@ public class SnapshotPublisher {
 
     public void close() {
         producer.close();
+    }
+
+    private void awaitPublication(PendingSnapshotPublish pendingPublish) {
+        try {
+            pendingPublish.publishFuture().get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            log.warn("Snapshot publish interrupted. topic={}, key={}, payloadBytes={}",
+                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.payloadBytes(), exception);
+            throw new SnapshotPublishException(
+                    buildFailureMessage("Snapshot publish interrupted", pendingPublish.topic(), pendingPublish.key(), exception),
+                    exception
+            );
+        } catch (ExecutionException exception) {
+            log.error("Snapshot publish failed. topic={}, key={}, payloadBytes={}",
+                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.payloadBytes(), exception);
+            throw new SnapshotPublishException(
+                    buildFailureMessage("Failed to publish snapshot to Kafka", pendingPublish.topic(), pendingPublish.key(), exception),
+                    exception
+            );
+        }
     }
 
     private String buildFailureMessage(String prefix, String topic, String key, Exception exception) {
@@ -71,5 +95,13 @@ public class SnapshotPublisher {
             return exception.getMessage();
         }
         return exception.getClass().getSimpleName();
+    }
+
+    public record PendingSnapshotPublish(
+            String topic,
+            String key,
+            int payloadBytes,
+            Future<RecordMetadata> publishFuture
+    ) {
     }
 }

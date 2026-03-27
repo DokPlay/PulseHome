@@ -11,6 +11,7 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,8 +47,11 @@ public class AggregationStarter {
                     continue;
                 }
 
-                processRecords(records);
-                snapshotPublisher.flush();
+                List<SnapshotPublisher.PendingSnapshotPublish> pendingPublishes = processRecords(records);
+                if (!pendingPublishes.isEmpty()) {
+                    snapshotPublisher.flush();
+                    snapshotPublisher.awaitPublications(pendingPublishes);
+                }
                 consumer.commitSync();
             }
         } catch (WakeupException ignored) {
@@ -74,14 +78,16 @@ public class AggregationStarter {
         consumer.wakeup();
     }
 
-    private void processRecords(ConsumerRecords<String, SensorEventAvro> records) {
+    private List<SnapshotPublisher.PendingSnapshotPublish> processRecords(ConsumerRecords<String, SensorEventAvro> records) {
+        List<SnapshotPublisher.PendingSnapshotPublish> pendingPublishes = new ArrayList<>();
         for (ConsumerRecord<String, SensorEventAvro> record : records) {
             if (record.value() == null) {
                 continue;
             }
 
-            Optional<SensorsSnapshotAvro> snapshot = aggregationService.updateState(record.value());
-            snapshot.ifPresent(snapshotPublisher::publish);
+            Optional<SensorsSnapshotAvro> updatedSnapshot = aggregationService.updateState(record.value());
+            updatedSnapshot.ifPresent(snapshot -> pendingPublishes.add(snapshotPublisher.publish(snapshot)));
         }
+        return pendingPublishes;
     }
 }

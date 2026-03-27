@@ -12,6 +12,7 @@ import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,7 +31,8 @@ class SnapshotPublisherTest {
         SnapshotPublisher publisher = new SnapshotPublisher(producer, new AggregatorKafkaProperties());
         SensorsSnapshotAvro snapshot = snapshot();
 
-        publisher.publish(snapshot);
+        SnapshotPublisher.PendingSnapshotPublish pendingPublish = publisher.publish(snapshot);
+        publisher.awaitPublications(List.of(pendingPublish));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<ProducerRecord<String, byte[]>> recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
@@ -58,6 +60,22 @@ class SnapshotPublisherTest {
                 .hasMessageContaining("topic=telemetry.snapshots.v1")
                 .hasMessageContaining("key=hub-1")
                 .hasMessageContaining("cause=producer closed");
+    }
+
+    @Test
+    void shouldWrapAsyncSendFailureWhenAwaitingPublication() {
+        @SuppressWarnings("unchecked")
+        Producer<String, byte[]> producer = mock(Producer.class);
+        when(producer.send(any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
+
+        SnapshotPublisher publisher = new SnapshotPublisher(producer, new AggregatorKafkaProperties());
+        SnapshotPublisher.PendingSnapshotPublish pendingPublish = publisher.publish(snapshot());
+
+        assertThatThrownBy(() -> publisher.awaitPublications(List.of(pendingPublish)))
+                .isInstanceOf(SnapshotPublishException.class)
+                .hasMessageContaining("topic=telemetry.snapshots.v1")
+                .hasMessageContaining("key=hub-1")
+                .hasMessageContaining("cause=broker unavailable");
     }
 
     @SuppressWarnings("unchecked")

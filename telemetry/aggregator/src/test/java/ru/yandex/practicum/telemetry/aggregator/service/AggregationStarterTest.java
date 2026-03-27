@@ -6,17 +6,20 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
 
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -48,6 +51,13 @@ class AggregationStarterTest {
 
         when(consumer.poll(properties.getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
         when(aggregationService.updateState(event)).thenReturn(Optional.of(snapshot));
+        SnapshotPublisher.PendingSnapshotPublish pendingPublish = new SnapshotPublisher.PendingSnapshotPublish(
+                "telemetry.snapshots.v1",
+                "hub-1",
+                42,
+                CompletableFuture.completedFuture(null)
+        );
+        when(publisher.publish(snapshot)).thenReturn(pendingPublish);
 
         AggregationStarter starter = new AggregationStarter(consumer, properties, aggregationService, publisher);
         starter.start();
@@ -55,10 +65,15 @@ class AggregationStarterTest {
         verify(consumer).subscribe(List.of("telemetry.sensors.v1"));
         verify(aggregationService).updateState(event);
         verify(publisher).publish(snapshot);
+        verify(publisher).awaitPublications(List.of(pendingPublish));
         verify(publisher, times(2)).flush();
         verify(consumer).commitSync();
         verify(consumer).close();
         verify(publisher).close();
+        InOrder inOrder = inOrder(publisher, consumer);
+        inOrder.verify(publisher).flush();
+        inOrder.verify(publisher).awaitPublications(List.of(pendingPublish));
+        inOrder.verify(consumer).commitSync();
     }
 
     @Test
