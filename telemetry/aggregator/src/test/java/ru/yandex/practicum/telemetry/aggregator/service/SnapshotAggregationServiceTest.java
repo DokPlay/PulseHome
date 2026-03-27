@@ -96,6 +96,22 @@ class SnapshotAggregationServiceTest {
         assertThat(snapshot.getSensorsState()).containsKeys("sensor.light.1", "sensor.motion.1");
     }
 
+    @Test
+    void shouldEvictLeastRecentlyUpdatedHubWhenCacheLimitIsReached() {
+        SnapshotAggregationService limitedService = new SnapshotAggregationService(2);
+
+        limitedService.updateState(lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:24.157Z"), 60));
+        limitedService.updateState(lightEvent("hub-2", "sensor.light.2", Instant.parse("2024-08-06T15:11:25.157Z"), 61));
+        limitedService.updateState(lightEvent("hub-3", "sensor.light.3", Instant.parse("2024-08-06T15:11:26.157Z"), 62));
+
+        SensorsSnapshotAvro recreatedSnapshot = limitedService.updateState(
+                lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:27.157Z"), 63)
+        ).orElseThrow();
+
+        assertThat(recreatedSnapshot.getVersion()).isEqualTo(1);
+        assertThat(recreatedSnapshot.getTimestamp()).isEqualTo(Instant.parse("2024-08-06T15:11:27.157Z"));
+    }
+
     private SensorEventAvro motionEvent(String hubId, String sensorId, Instant timestamp, boolean motion) {
         return SensorEventAvro.newBuilder()
                 .setHubId(hubId)

@@ -8,13 +8,24 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class SnapshotAggregationService {
 
-    private final Map<String, SensorsSnapshotAvro> snapshots = new HashMap<>();
+    private static final int DEFAULT_MAX_TRACKED_HUBS = 10_000;
+
+    private final Map<String, SensorsSnapshotAvro> snapshots;
+
+    public SnapshotAggregationService() {
+        this(DEFAULT_MAX_TRACKED_HUBS);
+    }
+
+    SnapshotAggregationService(int maxTrackedHubs) {
+        this.snapshots = createSnapshotCache(maxTrackedHubs);
+    }
 
     public Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
@@ -69,5 +80,14 @@ public class SnapshotAggregationService {
     private Instant normalizeTimestamp(Instant timestamp) {
         Instant actualTimestamp = timestamp == null ? Instant.now() : timestamp;
         return actualTimestamp.truncatedTo(ChronoUnit.MILLIS);
+    }
+
+    private Map<String, SensorsSnapshotAvro> createSnapshotCache(int maxTrackedHubs) {
+        return new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, SensorsSnapshotAvro> eldestEntry) {
+                return size() > maxTrackedHubs;
+            }
+        };
     }
 }
