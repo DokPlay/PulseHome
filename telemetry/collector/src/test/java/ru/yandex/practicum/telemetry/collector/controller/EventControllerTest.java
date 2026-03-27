@@ -6,7 +6,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.RequestBuilder;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.service.CollectorEventService;
 import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
@@ -32,7 +32,7 @@ class EventControllerTest {
     private CollectorEventService collectorEventService;
 
     @SuppressWarnings("null")
-    private static MockHttpServletRequestBuilder postJson(String url, String payload) {
+    private static RequestBuilder postJson(String url, String payload) {
         return post(url)
                 .contentType(JSON_MEDIA_TYPE)
                 .content(payload);
