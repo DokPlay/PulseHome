@@ -65,6 +65,12 @@
                 <artifactId>commons-beanutils</artifactId>
                 <version>1.11.0</version>
             </dependency>
+            <!-- CVE-2025-48924: commons-lang3 uncontrolled recursion / StackOverflowError DoS -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.18.0</version>
+            </dependency>
             <!-- CVE-2025-12183, CVE-2025-66566: lz4-java out-of-bounds / info leak - patched in 1.10.1
                  kafka-clients and transitive kafka deps use org.lz4:lz4-java (max 1.8.1, still vulnerable).
                  Replace with at.yawk.lz4:lz4-java (same classes, CVE fix in 1.10.1+). -->
