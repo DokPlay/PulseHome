@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "DeviceActionAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "sensor_id", "type": "string" },
+    { "name": "type", "type": "ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro" },
+    {
+      "name": "value",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    }
+  ]
+}

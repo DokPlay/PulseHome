@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "LightSensorAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "link_quality", "type": "int" },
+    { "name": "luminosity", "type": "int" }
+  ]
+}
