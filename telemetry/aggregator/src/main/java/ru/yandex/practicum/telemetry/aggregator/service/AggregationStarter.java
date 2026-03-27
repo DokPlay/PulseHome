@@ -38,11 +38,11 @@ public class AggregationStarter {
     }
 
     public void start() {
-        try {
-            consumer.subscribe(List.of(properties.getTopics().getSensors()));
+        try (Consumer<String, SensorEventAvro> managedConsumer = consumer) {
+            managedConsumer.subscribe(List.of(properties.getTopics().getSensors()));
 
             while (active.get()) {
-                ConsumerRecords<String, SensorEventAvro> records = consumer.poll(properties.getPollTimeout());
+                ConsumerRecords<String, SensorEventAvro> records = managedConsumer.poll(properties.getPollTimeout());
                 if (records.isEmpty()) {
                     continue;
                 }
@@ -52,7 +52,7 @@ public class AggregationStarter {
                     snapshotPublisher.flush();
                     snapshotPublisher.awaitPublications(pendingPublishes);
                 }
-                consumer.commitSync();
+                managedConsumer.commitSync();
             }
         } catch (WakeupException ignored) {
             // Shutdown is expected to interrupt the poll loop through consumer.wakeup().
@@ -65,8 +65,6 @@ public class AggregationStarter {
             } catch (Exception exception) {
                 log.warn("Failed to flush producer during shutdown", exception);
             } finally {
-                log.info("Closing consumer");
-                consumer.close();
                 log.info("Closing producer");
                 snapshotPublisher.close();
             }

@@ -3,12 +3,15 @@ package ru.yandex.practicum.telemetry.collector.controller;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.service.CollectorEventService;
 import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
+
+import java.util.Objects;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -20,11 +23,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(EventController.class)
 class EventControllerTest {
 
+    private static final MediaType JSON_MEDIA_TYPE = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private CollectorEventService collectorEventService;
+
+    @SuppressWarnings("null")
+    private static MockHttpServletRequestBuilder postJson(String url, String payload) {
+        return post(url)
+                .contentType(JSON_MEDIA_TYPE)
+                .content(payload);
+    }
 
     @Test
     void shouldAcceptSensorEvents() throws Exception {
@@ -39,9 +51,7 @@ class EventControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/events/sensors")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/sensors", payload))
                 .andExpect(status().isOk());
 
         verify(collectorEventService).collectSensorEvent(any());
@@ -59,9 +69,7 @@ class EventControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/events/sensors")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/sensors", payload))
                 .andExpect(status().isBadRequest());
     }
 
@@ -77,9 +85,7 @@ class EventControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/events/hubs")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/hubs", payload))
                 .andExpect(status().isOk());
 
         verify(collectorEventService).collectHubEvent(any());
@@ -109,9 +115,7 @@ class EventControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/events/hubs")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/hubs", payload))
                 .andExpect(status().isBadRequest());
     }
 
@@ -128,9 +132,7 @@ class EventControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/events/sensors")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/sensors", payload))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Invalid request body"));
     }
@@ -152,9 +154,7 @@ class EventControllerTest {
                 .when(collectorEventService)
                 .collectSensorEvent(any());
 
-        mockMvc.perform(post("/events/sensors")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/sensors", payload))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error").value("Failed to publish event to Kafka. topic=telemetry.sensors.v1, key=hub-2, cause=broker timeout"));
     }
@@ -188,9 +188,7 @@ class EventControllerTest {
                 .when(collectorEventService)
                 .collectHubEvent(any());
 
-        mockMvc.perform(post("/events/hubs")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/hubs", payload))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Boolean-like condition value must be 0 or 1"));
     }
@@ -210,9 +208,7 @@ class EventControllerTest {
 
         doThrow(new RuntimeException("unexpected")).when(collectorEventService).collectSensorEvent(any());
 
-        mockMvc.perform(post("/events/sensors")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+        mockMvc.perform(postJson("/events/sensors", payload))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Internal server error"));
     }

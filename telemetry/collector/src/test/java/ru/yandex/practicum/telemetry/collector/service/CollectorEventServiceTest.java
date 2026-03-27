@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
@@ -44,8 +45,8 @@ class CollectorEventServiceTest {
 
     @BeforeEach
     void setUp() {
-        kafkaTemplate = mock(KafkaTemplate.class);
-        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        kafkaTemplate = mockKafkaTemplate();
+        stubSendResult(kafkaTemplate, CompletableFuture.completedFuture(null));
 
         CollectorKafkaProperties properties = new CollectorKafkaProperties();
         service = new CollectorEventService(
@@ -69,7 +70,7 @@ class CollectorEventServiceTest {
         service.collectSensorEvent(event);
 
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+        verifySendCaptured(kafkaTemplate, payloadCaptor);
 
         SensorEventAvro avroEvent = decode(payloadCaptor.getValue(), new SpecificDatumReader<>(SensorEventAvro.getClassSchema()));
         assertThat(avroEvent.getId()).isEqualTo("sensor.motion.1");
@@ -87,7 +88,7 @@ class CollectorEventServiceTest {
         service.collectHubEvent(event);
 
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+        verifySendCaptured(kafkaTemplate, payloadCaptor);
 
         HubEventAvro avroEvent = decode(payloadCaptor.getValue(), new SpecificDatumReader<>(HubEventAvro.getClassSchema()));
         assertThat(avroEvent.getHubId()).isEqualTo("hub-3");
@@ -99,10 +100,10 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldIncludeTopicAndKeyInPublishFailureMessage() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        CompletableFuture<org.springframework.kafka.support.SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
+        KafkaTemplate<String, byte[]> failingKafkaTemplate = mockKafkaTemplate();
+        CompletableFuture<SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new TimeoutException("broker did not acknowledge"));
-        when(failingKafkaTemplate.send(anyString(), anyString(), any())).thenReturn(failedFuture);
+        stubSendResult(failingKafkaTemplate, failedFuture);
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
@@ -127,10 +128,10 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldFallbackToExceptionTypeWhenPublishFailureCauseMessageIsMissing() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        CompletableFuture<org.springframework.kafka.support.SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
+        KafkaTemplate<String, byte[]> failingKafkaTemplate = mockKafkaTemplate();
+        CompletableFuture<SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new TimeoutException());
-        when(failingKafkaTemplate.send(anyString(), anyString(), any())).thenReturn(failedFuture);
+        stubSendResult(failingKafkaTemplate, failedFuture);
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
@@ -154,9 +155,8 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldWrapRuntimeFailureThrownByKafkaSend() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        when(failingKafkaTemplate.send(anyString(), anyString(), any()))
-                .thenThrow(new IllegalStateException("producer factory is not initialized"));
+        KafkaTemplate<String, byte[]> failingKafkaTemplate = mockKafkaTemplate();
+        stubSendFailure(failingKafkaTemplate, new IllegalStateException("producer factory is not initialized"));
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
@@ -192,6 +192,32 @@ class CollectorEventServiceTest {
                 .isInstanceOf(InvalidScenarioConditionValueException.class)
                 .hasMessageContaining("0 or 1");
 
+        verifySendNeverCalled(kafkaTemplate);
+    }
+
+    @SuppressWarnings("unchecked")
+    private KafkaTemplate<String, byte[]> mockKafkaTemplate() {
+        return (KafkaTemplate<String, byte[]>) mock(KafkaTemplate.class);
+    }
+
+    @SuppressWarnings("null")
+    private void stubSendResult(KafkaTemplate<String, byte[]> kafkaTemplate,
+                                CompletableFuture<SendResult<String, byte[]>> sendFuture) {
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(sendFuture);
+    }
+
+    @SuppressWarnings("null")
+    private void stubSendFailure(KafkaTemplate<String, byte[]> kafkaTemplate, RuntimeException exception) {
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenThrow(exception);
+    }
+
+    @SuppressWarnings("null")
+    private void verifySendCaptured(KafkaTemplate<String, byte[]> kafkaTemplate, ArgumentCaptor<byte[]> payloadCaptor) {
+        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+    }
+
+    @SuppressWarnings("null")
+    private void verifySendNeverCalled(KafkaTemplate<String, byte[]> kafkaTemplate) {
         verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
     }
 
