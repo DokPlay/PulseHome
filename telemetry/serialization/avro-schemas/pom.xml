@@ -20,6 +20,10 @@
             <artifactId>avro</artifactId>
             <version>${avro.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -57,6 +61,8 @@
                                 <import>${project.basedir}/src/main/avro/14-MotionSensorAvro.avsc</import>
                                 <import>${project.basedir}/src/main/avro/15-SwitchSensorAvro.avsc</import>
                                 <import>${project.basedir}/src/main/avro/16-TemperatureSensorAvro.avsc</import>
+                                <import>${project.basedir}/src/main/avro/17-SensorEventAvro.avsc</import>
+                                <import>${project.basedir}/src/main/avro/18-SensorStateAvro.avsc</import>
                             </imports>
                             <stringType>String</stringType>
                             <fieldVisibility>PRIVATE</fieldVisibility>
