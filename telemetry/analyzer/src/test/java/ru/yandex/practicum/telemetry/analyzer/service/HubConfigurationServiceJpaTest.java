@@ -15,6 +15,9 @@ import ru.yandex.practicum.kafka.telemetry.event.DeviceTypeAvro;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionOperation;
+import ru.yandex.practicum.telemetry.analyzer.model.ConditionType;
 import ru.yandex.practicum.telemetry.analyzer.model.ScenarioDefinition;
 import ru.yandex.practicum.telemetry.analyzer.repository.SensorRepository;
 
@@ -72,6 +75,9 @@ class HubConfigurationServiceJpaTest {
         assertThat(scenarios).hasSize(1);
         assertThat(scenarios.getFirst().conditions()).hasSize(1);
         assertThat(scenarios.getFirst().actions()).hasSize(1);
+        assertThat(scenarios.getFirst().conditions().getFirst().type()).isEqualTo(ConditionType.LUMINOSITY);
+        assertThat(scenarios.getFirst().conditions().getFirst().operation()).isEqualTo(ConditionOperation.LOWER_THAN);
+        assertThat(scenarios.getFirst().actions().getFirst().type()).isEqualTo(ActionType.ACTIVATE);
         assertThat(sensorRepository.findById("switch.1")).isPresent();
     }
 

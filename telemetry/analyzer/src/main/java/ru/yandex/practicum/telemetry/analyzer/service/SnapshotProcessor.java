@@ -79,6 +79,8 @@ public class SnapshotProcessor {
                         snapshotAnalyzerService.analyze(record.value());
                         trackRecord(processedOffsets, record);
                     } catch (RetryableActionDispatchException exception) {
+                        // Commit only offsets that are known to be fully processed. Replaying the whole batch
+                        // after a partial action dispatch can duplicate non-idempotent scenario actions.
                         log.warn("Retryable snapshot action dispatch failure. topic={}, partition={}, offset={}",
                                 record.topic(), record.partition(), record.offset(), exception);
                         break;

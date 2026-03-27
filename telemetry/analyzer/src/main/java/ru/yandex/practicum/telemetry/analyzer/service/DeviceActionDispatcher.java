@@ -8,11 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.telemetry.analyzer.config.AnalyzerGrpcProperties;
-import ru.yandex.practicum.grpc.telemetry.event.HubEventProto.ActionTypeProto;
 import ru.yandex.practicum.grpc.telemetry.event.HubEventProto.DeviceActionProto;
 import ru.yandex.practicum.grpc.telemetry.event.HubEventProto.DeviceActionRequest;
 import ru.yandex.practicum.grpc.telemetry.hubrouter.HubRouterControllerGrpc.HubRouterControllerBlockingStub;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
+import ru.yandex.practicum.telemetry.analyzer.mapper.ContractEnumMapper;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
 
 import java.time.Instant;
@@ -39,8 +38,8 @@ public class DeviceActionDispatcher {
                 .setTimestamp(toTimestamp(timestamp))
                 .setAction(DeviceActionProto.newBuilder()
                         .setSensorId(actionSpec.sensorId())
-                        .setType(ActionTypeProto.valueOf(actionSpec.type().name()))
-                        .setValue(actionSpec.value() == null ? 0 : actionSpec.value())
+                        .setType(ContractEnumMapper.toActionTypeProto(actionSpec.type()))
+                        .setValue(normalizeGrpcActionValue(actionSpec))
                         .build())
                 .build();
 
@@ -70,5 +69,10 @@ public class DeviceActionDispatcher {
                 .setSeconds(instant.getEpochSecond())
                 .setNanos(instant.getNano())
                 .build();
+    }
+
+    private int normalizeGrpcActionValue(ActionSpec actionSpec) {
+        Integer value = actionSpec.value();
+        return value != null ? value.intValue() : 0;
     }
 }

@@ -8,9 +8,9 @@ import org.mockito.ArgumentCaptor;
 import ru.yandex.practicum.grpc.telemetry.event.HubEventProto.ActionTypeProto;
 import ru.yandex.practicum.grpc.telemetry.event.HubEventProto.DeviceActionRequest;
 import ru.yandex.practicum.grpc.telemetry.hubrouter.HubRouterControllerGrpc.HubRouterControllerBlockingStub;
-import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
 import ru.yandex.practicum.telemetry.analyzer.config.AnalyzerGrpcProperties;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
+import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
 
 import java.time.Instant;
 
@@ -31,7 +31,7 @@ class DeviceActionDispatcherTest {
         when(deadlineStub.handleDeviceAction(org.mockito.ArgumentMatchers.any())).thenReturn(Empty.getDefaultInstance());
 
         DeviceActionDispatcher dispatcher = new DeviceActionDispatcher(stub, new AnalyzerGrpcProperties());
-        ActionSpec actionSpec = new ActionSpec("switch.1", ActionTypeAvro.SET_VALUE, 23);
+        ActionSpec actionSpec = new ActionSpec("switch.1", ActionType.SET_VALUE, 23);
 
         dispatcher.dispatch("hub-1", "warm-floor", Instant.parse("2024-08-06T15:11:24.157Z"), actionSpec);
 
@@ -62,7 +62,7 @@ class DeviceActionDispatcherTest {
                 "hub-1",
                 "warm-floor",
                 Instant.parse("2024-08-06T15:11:24.157Z"),
-                new ActionSpec("switch.1", ActionTypeAvro.SET_VALUE, 23)
+                new ActionSpec("switch.1", ActionType.SET_VALUE, 23)
         )).isInstanceOf(RetryableActionDispatchException.class);
     }
 }
