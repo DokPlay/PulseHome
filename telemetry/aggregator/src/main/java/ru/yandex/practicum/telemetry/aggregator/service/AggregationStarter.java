@@ -59,9 +59,8 @@ public class AggregationStarter {
         } finally {
             try {
                 snapshotPublisher.flush();
-                consumer.commitSync();
             } catch (Exception exception) {
-                log.warn("Failed to flush producer or commit offsets during shutdown", exception);
+                log.warn("Failed to flush producer during shutdown", exception);
             } finally {
                 log.info("Closing consumer");
                 consumer.close();

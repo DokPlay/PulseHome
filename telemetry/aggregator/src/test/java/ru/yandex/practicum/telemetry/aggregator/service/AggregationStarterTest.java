@@ -53,7 +53,7 @@ class AggregationStarterTest {
         verify(aggregationService).updateState(event);
         verify(publisher).publish(snapshot);
         verify(publisher, times(2)).flush();
-        verify(consumer, times(2)).commitSync();
+        verify(consumer).commitSync();
         verify(consumer).close();
         verify(publisher).close();
     }
