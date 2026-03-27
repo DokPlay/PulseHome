@@ -16,6 +16,7 @@
 
     <modules>
         <module>collector</module>
+        <module>aggregator</module>
         <module>serialization</module>
     </modules>
 </project>

@@ -1,20 +1,21 @@
-package ru.yandex.practicum.telemetry.collector.service;
+package ru.yandex.practicum.telemetry.serialization;
 
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
-import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-@Component
-public class AvroBinarySerializer {
+public final class AvroBinarySerializer {
 
-    public <T extends SpecificRecord> byte[] serialize(T record) {
+    private AvroBinarySerializer() {
+    }
+
+    public static <T extends SpecificRecord> byte[] serialize(T record) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             DatumWriter<T> writer = new SpecificDatumWriter<>(record.getSchema());
