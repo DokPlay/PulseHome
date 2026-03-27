@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: analyzer
+  datasource:
+    url: ${ANALYZER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/analyzer}
+    username: ${ANALYZER_DATASOURCE_USERNAME:postgres}
+    password: ${ANALYZER_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+analyzer:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      hubs: telemetry.hubs.v1
+      snapshots: telemetry.snapshots.v1
+    hubs-consumer:
+      group-id: analyzer-hubs
+      client-id-prefix: analyzer-hubs
+      poll-timeout: 1s
+      max-poll-records: 50
+      auto-offset-reset: earliest
+    snapshots-consumer:
+      group-id: analyzer-snapshots
+      client-id-prefix: analyzer-snapshots
+      poll-timeout: 1s
+      max-poll-records: 100
+      auto-offset-reset: earliest
+  grpc:
+    hub-router:
+      action-timeout: 3s
+
+grpc:
+  client:
+    hub-router:
+      address: static://localhost:59090
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext

@@ -1,0 +1,127 @@
+package ru.yandex.practicum.telemetry.analyzer.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
+import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ConditionOperationAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ConditionTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceActionAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
+import ru.yandex.practicum.telemetry.analyzer.model.ScenarioDefinition;
+import ru.yandex.practicum.telemetry.analyzer.repository.SensorRepository;
+
+import java.time.Instant;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.datasource.url=jdbc:h2:mem:analyzer-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE"
+})
+@Import(HubConfigurationService.class)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+class HubConfigurationServiceJpaTest {
+
+    @Autowired
+    private HubConfigurationService hubConfigurationService;
+
+    @Autowired
+    private SensorRepository sensorRepository;
+
+    @Test
+    void shouldPersistScenarioAndLinkedSensorsFromHubEvents() {
+        hubConfigurationService.handleHubEvent(deviceAddedEvent("hub-1", "sensor.light.1", DeviceTypeAvro.LIGHT_SENSOR));
+
+        HubEventAvro scenarioAddedEvent = HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName("hall-light")
+                        .setConditions(List.of(
+                                ScenarioConditionAvro.newBuilder()
+                                        .setSensorId("sensor.light.1")
+                                        .setType(ConditionTypeAvro.LUMINOSITY)
+                                        .setOperation(ConditionOperationAvro.LOWER_THAN)
+                                        .setValue(20)
+                                        .build()
+                        ))
+                        .setActions(List.of(
+                                DeviceActionAvro.newBuilder()
+                                        .setSensorId("switch.1")
+                                        .setType(ActionTypeAvro.ACTIVATE)
+                                        .setValue(1)
+                                        .build()
+                        ))
+                        .build())
+                .build();
+
+        hubConfigurationService.handleHubEvent(scenarioAddedEvent);
+
+        List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios("hub-1");
+
+        assertThat(scenarios).hasSize(1);
+        assertThat(scenarios.getFirst().conditions()).hasSize(1);
+        assertThat(scenarios.getFirst().actions()).hasSize(1);
+        assertThat(sensorRepository.findById("switch.1")).isPresent();
+    }
+
+    @Test
+    void shouldRemoveSensorAndUnlinkScenarioParts() {
+        hubConfigurationService.handleHubEvent(deviceAddedEvent("hub-1", "sensor.motion.1", DeviceTypeAvro.MOTION_SENSOR));
+        hubConfigurationService.handleHubEvent(HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName("alarm")
+                        .setConditions(List.of(
+                                ScenarioConditionAvro.newBuilder()
+                                        .setSensorId("sensor.motion.1")
+                                        .setType(ConditionTypeAvro.MOTION)
+                                        .setOperation(ConditionOperationAvro.EQUALS)
+                                        .setValue(true)
+                                        .build()
+                        ))
+                        .setActions(List.of(
+                                DeviceActionAvro.newBuilder()
+                                        .setSensorId("sensor.motion.1")
+                                        .setType(ActionTypeAvro.INVERSE)
+                                        .build()
+                        ))
+                        .build())
+                .build());
+
+        hubConfigurationService.handleHubEvent(HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(DeviceRemovedEventAvro.newBuilder()
+                        .setId("sensor.motion.1")
+                        .build())
+                .build());
+
+        List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios("hub-1");
+
+        assertThat(sensorRepository.findById("sensor.motion.1")).isEmpty();
+        assertThat(scenarios).isEmpty();
+    }
+
+    private HubEventAvro deviceAddedEvent(String hubId, String sensorId, DeviceTypeAvro type) {
+        return HubEventAvro.newBuilder()
+                .setHubId(hubId)
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(DeviceAddedEventAvro.newBuilder()
+                        .setId(sensorId)
+                        .setType(type)
+                        .build())
+                .build();
+    }
+}

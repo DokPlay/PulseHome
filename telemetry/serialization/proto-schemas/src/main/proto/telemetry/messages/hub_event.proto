@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package message.event;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "ru.yandex.practicum.grpc.telemetry.event";
+option java_outer_classname = "HubEventProto";
+
+enum ActionTypeProto {
+    ACTION_TYPE_UNSPECIFIED = 0;
+    ACTIVATE = 1;
+    DEACTIVATE = 2;
+    INVERSE = 3;
+    SET_VALUE = 4;
+}
+
+message DeviceActionProto {
+    string sensor_id = 1;
+    ActionTypeProto type = 2;
+    int32 value = 3;
+}
+
+message DeviceActionRequest {
+    string hub_id = 1;
+    string scenario_name = 2;
+    DeviceActionProto action = 3;
+    google.protobuf.Timestamp timestamp = 4;
+}
