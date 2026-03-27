@@ -42,9 +42,11 @@ class SnapshotPublisherTest {
         assertThat(record.topic()).isEqualTo("telemetry.snapshots.v1");
         assertThat(record.key()).isEqualTo("hub-1");
 
-        SensorsSnapshotAvro decoded = new SensorsSnapshotDeserializer().deserialize(record.topic(), record.value());
-        assertThat(decoded.getHubId()).isEqualTo("hub-1");
-        assertThat(decoded.getSensorsState()).containsKey("sensor.light.1");
+        try (SensorsSnapshotDeserializer deserializer = new SensorsSnapshotDeserializer()) {
+            SensorsSnapshotAvro decoded = deserializer.deserialize(record.topic(), record.value());
+            assertThat(decoded.getHubId()).isEqualTo("hub-1");
+            assertThat(decoded.getSensorsState()).containsKey("sensor.light.1");
+        }
     }
 
     @Test

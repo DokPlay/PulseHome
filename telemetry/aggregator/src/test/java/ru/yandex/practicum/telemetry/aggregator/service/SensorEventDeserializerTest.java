@@ -26,10 +26,12 @@ class SensorEventDeserializerTest {
                 .build();
 
         byte[] bytes = AvroBinarySerializer.serialize(event);
-        SensorEventAvro deserialized = new SensorEventDeserializer().deserialize("telemetry.sensors.v1", bytes);
+        try (SensorEventDeserializer deserializer = new SensorEventDeserializer()) {
+            SensorEventAvro deserialized = deserializer.deserialize("telemetry.sensors.v1", bytes);
 
-        assertThat(deserialized.getId()).isEqualTo("sensor.motion.1");
-        assertThat(deserialized.getHubId()).isEqualTo("hub-1");
-        assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
+            assertThat(deserialized.getId()).isEqualTo("sensor.motion.1");
+            assertThat(deserialized.getHubId()).isEqualTo("hub-1");
+            assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
+        }
     }
 }

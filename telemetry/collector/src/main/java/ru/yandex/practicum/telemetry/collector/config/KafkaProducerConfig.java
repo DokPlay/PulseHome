@@ -11,6 +11,7 @@ import org.springframework.kafka.core.ProducerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Configuration
 public class KafkaProducerConfig {
@@ -37,11 +38,13 @@ public class KafkaProducerConfig {
         configuration.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, sendTimeoutMs);
         configuration.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
         configuration.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, sendTimeoutMs);
-        return new DefaultKafkaProducerFactory<>(configuration);
+        return new DefaultKafkaProducerFactory<String, byte[]>(configuration);
     }
 
     @Bean
     public KafkaTemplate<String, byte[]> kafkaTemplate(ProducerFactory<String, byte[]> producerFactory) {
-        return new KafkaTemplate<>(producerFactory);
+        ProducerFactory<String, byte[]> nonNullProducerFactory =
+                Objects.requireNonNull(producerFactory, "producerFactory must not be null");
+        return new KafkaTemplate<>(nonNullProducerFactory);
     }
 }
