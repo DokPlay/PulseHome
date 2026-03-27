@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: aggregator
+  main:
+    web-application-type: none
+
+aggregator:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    poll-timeout: ${AGGREGATOR_KAFKA_POLL_TIMEOUT:1s}
+    send-timeout: ${AGGREGATOR_KAFKA_SEND_TIMEOUT:10s}
+    consumer:
+      group-id: ${AGGREGATOR_KAFKA_GROUP_ID:aggregator}
+      client-id: ${AGGREGATOR_KAFKA_CLIENT_ID:aggregator-client}
+      auto-offset-reset: earliest
+      max-poll-records: 500
+    producer:
+      acks: all
+      enable-idempotence: true
+      compression-type: snappy
+      linger-ms: 5
+      batch-size: 32768
+      max-in-flight-requests-per-connection: 5
+    topics:
+      sensors: telemetry.sensors.v1
+      snapshots: telemetry.snapshots.v1

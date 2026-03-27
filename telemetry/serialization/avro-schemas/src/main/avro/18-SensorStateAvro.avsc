@@ -1,0 +1,24 @@
+{
+  "type": "record",
+  "name": "SensorStateAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "data",
+      "type": [
+        "ru.yandex.practicum.kafka.telemetry.event.ClimateSensorAvro",
+        "ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro",
+        "ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro",
+        "ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro",
+        "ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro"
+      ]
+    }
+  ]
+}

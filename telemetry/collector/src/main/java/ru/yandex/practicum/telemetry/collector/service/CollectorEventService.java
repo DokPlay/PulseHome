@@ -11,6 +11,7 @@ import ru.yandex.practicum.telemetry.collector.dto.hub.HubEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.SensorEvent;
 import ru.yandex.practicum.telemetry.collector.mapper.HubEventAvroMapper;
 import ru.yandex.practicum.telemetry.collector.mapper.SensorEventAvroMapper;
+import ru.yandex.practicum.telemetry.serialization.AvroBinarySerializer;
 
 import java.util.concurrent.ExecutionException;
 
@@ -23,29 +24,26 @@ public class CollectorEventService {
     private final CollectorKafkaProperties properties;
     private final SensorEventAvroMapper sensorEventAvroMapper;
     private final HubEventAvroMapper hubEventAvroMapper;
-    private final AvroBinarySerializer avroBinarySerializer;
 
     public CollectorEventService(KafkaTemplate<String, byte[]> kafkaTemplate,
                                  CollectorKafkaProperties properties,
                                  SensorEventAvroMapper sensorEventAvroMapper,
-                                 HubEventAvroMapper hubEventAvroMapper,
-                                 AvroBinarySerializer avroBinarySerializer) {
+                                 HubEventAvroMapper hubEventAvroMapper) {
         this.kafkaTemplate = kafkaTemplate;
         this.properties = properties;
         this.sensorEventAvroMapper = sensorEventAvroMapper;
         this.hubEventAvroMapper = hubEventAvroMapper;
-        this.avroBinarySerializer = avroBinarySerializer;
     }
 
     public void collectSensorEvent(SensorEvent event) {
         SensorEventAvro avroEvent = sensorEventAvroMapper.toAvro(event);
-        byte[] payload = avroBinarySerializer.serialize(avroEvent);
+        byte[] payload = AvroBinarySerializer.serialize(avroEvent);
         publish(properties.getTopics().getSensors(), event.getHubId(), payload);
     }
 
     public void collectHubEvent(HubEvent event) {
         HubEventAvro avroEvent = hubEventAvroMapper.toAvro(event);
-        byte[] payload = avroBinarySerializer.serialize(avroEvent);
+        byte[] payload = AvroBinarySerializer.serialize(avroEvent);
         publish(properties.getTopics().getHubs(), event.getHubId(), payload);
     }
 
