@@ -20,10 +20,10 @@
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <spring-boot.version>3.5.5</spring-boot.version>
+        <spring-boot.version>3.5.6</spring-boot.version>
         <avro.version>1.11.5</avro.version>
         <protobuf.version>3.25.5</protobuf.version>
-        <grpc.version>1.68.1</grpc.version>
+        <grpc.version>1.74.0</grpc.version>
         <grpc.spring.boot.version>3.1.0.RELEASE</grpc.spring.boot.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
     </properties>
@@ -36,6 +36,58 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- CVE fixes: explicit version overrides -->
+            <!-- GHSA-72hv-8253-57qq: jackson-core async parser DoS -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.19.3</version>
+            </dependency>
+            <!-- CVE-2025-48734: commons-beanutils Improper Access Control -->
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.11.0</version>
+            </dependency>
+            <!-- CVE-2025-12183, CVE-2025-66566: lz4-java out-of-bounds / info leak -->
+            <dependency>
+                <groupId>org.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.8.1</version>
+            </dependency>
+            <!-- CVE-2026-24308, CVE-2026-24281: ZooKeeper config exposure / hostname bypass -->
+            <dependency>
+                <groupId>org.apache.zookeeper</groupId>
+                <artifactId>zookeeper</artifactId>
+                <version>3.8.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.zookeeper</groupId>
+                <artifactId>zookeeper-jute</artifactId>
+                <version>3.8.6</version>
+            </dependency>
+            <!-- CVE-2025-55752 + 5 others: Tomcat path traversal / bypass vulnerabilities -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <!-- CVE-2025-55163: grpc-netty-shaded MadeYouReset HTTP/2 DDoS -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>${grpc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
