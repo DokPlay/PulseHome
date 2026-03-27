@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "DeviceAddedEventAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "id", "type": "string" },
+    { "name": "type", "type": "ru.yandex.practicum.kafka.telemetry.event.DeviceTypeAvro" }
+  ]
+}
