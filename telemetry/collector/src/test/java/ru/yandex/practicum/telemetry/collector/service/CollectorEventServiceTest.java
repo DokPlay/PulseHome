@@ -52,8 +52,7 @@ class CollectorEventServiceTest {
                 kafkaTemplate,
                 properties,
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
     }
 
@@ -109,8 +108,7 @@ class CollectorEventServiceTest {
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
         MotionSensorEvent event = new MotionSensorEvent();
@@ -138,8 +136,7 @@ class CollectorEventServiceTest {
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
         MotionSensorEvent event = new MotionSensorEvent();
@@ -165,8 +162,7 @@ class CollectorEventServiceTest {
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
         MotionSensorEvent event = new MotionSensorEvent();
