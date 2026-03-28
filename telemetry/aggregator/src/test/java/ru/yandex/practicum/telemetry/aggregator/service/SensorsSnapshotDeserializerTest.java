@@ -23,6 +23,9 @@ class SensorsSnapshotDeserializerTest {
             SensorsSnapshotAvro deserialized = deserializer.deserialize("telemetry.snapshots.v1", bytes);
 
             assertThat(deserialized.getHubId()).isEqualTo("hub-1");
+            assertThat(deserialized.getTimestamp()).isEqualTo(snapshot.getTimestamp());
+            assertThat(deserialized.getSensorsState().get("sensor.light.1").getTimestamp())
+                    .isEqualTo(snapshot.getSensorsState().get("sensor.light.1").getTimestamp());
             assertThat(deserialized.getSensorsState()).containsKey("sensor.light.1");
         }
     }
@@ -36,6 +39,9 @@ class SensorsSnapshotDeserializerTest {
             SensorsSnapshotAvro deserialized = deserializer.deserialize("telemetry.snapshots.v1", bytes);
 
             assertThat(deserialized.getHubId()).isEqualTo("hub-1");
+            assertThat(deserialized.getTimestamp()).isEqualTo(snapshot.getTimestamp());
+            assertThat(deserialized.getSensorsState().get("sensor.light.1").getTimestamp())
+                    .isEqualTo(snapshot.getSensorsState().get("sensor.light.1").getTimestamp());
             assertThat(deserialized.getSensorsState()).containsKey("sensor.light.1");
         }
     }

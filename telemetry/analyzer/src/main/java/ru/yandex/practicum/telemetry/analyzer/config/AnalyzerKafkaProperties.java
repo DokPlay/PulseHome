@@ -72,6 +72,9 @@ public class AnalyzerKafkaProperties {
         @NotBlank
         private String snapshots = "telemetry.snapshots.v1";
 
+        @NotBlank
+        private String snapshotsDlq = "telemetry.snapshots.dlq.v1";
+
         public String getHubs() {
             return hubs;
         }
@@ -94,6 +97,14 @@ public class AnalyzerKafkaProperties {
 
         public void setSnapshots(String snapshots) {
             this.snapshots = snapshots;
+        }
+
+        public String getSnapshotsDlq() {
+            return snapshotsDlq;
+        }
+
+        public void setSnapshotsDlq(String snapshotsDlq) {
+            this.snapshotsDlq = snapshotsDlq;
         }
     }
 

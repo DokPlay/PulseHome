@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -20,13 +22,22 @@ public class SnapshotStateRestorer {
     private final Consumer<String, SensorsSnapshotAvro> snapshotConsumer;
     private final AggregatorKafkaProperties properties;
     private final SnapshotAggregationService aggregationService;
+    private final Clock clock;
 
     public SnapshotStateRestorer(Consumer<String, SensorsSnapshotAvro> snapshotConsumer,
                                  AggregatorKafkaProperties properties,
                                  SnapshotAggregationService aggregationService) {
+        this(snapshotConsumer, properties, aggregationService, Clock.systemUTC());
+    }
+
+    SnapshotStateRestorer(Consumer<String, SensorsSnapshotAvro> snapshotConsumer,
+                          AggregatorKafkaProperties properties,
+                          SnapshotAggregationService aggregationService,
+                          Clock clock) {
         this.snapshotConsumer = snapshotConsumer;
         this.properties = properties;
         this.aggregationService = aggregationService;
+        this.clock = clock;
     }
 
     public int restorePublishedSnapshots() {
@@ -49,7 +60,11 @@ public class SnapshotStateRestorer {
             }
 
             int restoredSnapshots = 0;
+            Instant deadline = clock.instant().plus(properties.getSnapshotRestoreTimeout());
             while (!isCaughtUp(managedConsumer, endOffsets)) {
+                if (!clock.instant().isBefore(deadline)) {
+                    throw restoreTimeout(snapshotsTopic, restoredSnapshots);
+                }
                 ConsumerRecords<String, SensorsSnapshotAvro> records = managedConsumer.poll(properties.getPollTimeout());
                 for (TopicPartition partition : records.partitions()) {
                     for (var record : records.records(partition)) {
@@ -66,6 +81,13 @@ public class SnapshotStateRestorer {
                     snapshotsTopic, restoredSnapshots);
             return restoredSnapshots;
         }
+    }
+
+    private IllegalStateException restoreTimeout(String topic, int restoredSnapshots) {
+        String message = "Timed out while restoring published snapshots before sensor replay. topic=%s, timeout=%s, restoredSnapshots=%d"
+                .formatted(topic, properties.getSnapshotRestoreTimeout(), restoredSnapshots);
+        log.error(message);
+        return new IllegalStateException(message);
     }
 
     private boolean isCaughtUp(Consumer<String, SensorsSnapshotAvro> consumer,

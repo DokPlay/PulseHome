@@ -26,14 +26,17 @@ public class SnapshotProcessor {
     private final Consumer<String, SensorsSnapshotAvro> consumer;
     private final AnalyzerKafkaProperties properties;
     private final SnapshotAnalyzerService snapshotAnalyzerService;
+    private final SnapshotDeadLetterPublisher snapshotDeadLetterPublisher;
     private final AtomicBoolean active = new AtomicBoolean(true);
 
     public SnapshotProcessor(@Qualifier("snapshotConsumer") Consumer<String, SensorsSnapshotAvro> consumer,
                              AnalyzerKafkaProperties properties,
-                             SnapshotAnalyzerService snapshotAnalyzerService) {
+                             SnapshotAnalyzerService snapshotAnalyzerService,
+                             SnapshotDeadLetterPublisher snapshotDeadLetterPublisher) {
         this.consumer = consumer;
         this.properties = properties;
         this.snapshotAnalyzerService = snapshotAnalyzerService;
+        this.snapshotDeadLetterPublisher = snapshotDeadLetterPublisher;
     }
 
     public void start() {
@@ -96,6 +99,11 @@ public class SnapshotProcessor {
                                 record.topic(), record.partition(), record.offset(), exception);
                         shouldStopBatch = true;
                         break;
+                    } catch (Exception exception) {
+                        log.error("Snapshot analysis failed, routing record to DLQ. topic={}, partition={}, offset={}",
+                                record.topic(), record.partition(), record.offset(), exception);
+                        snapshotDeadLetterPublisher.publish(record, exception);
+                        trackRecord(processedOffsets, record);
                     }
                 }
                 if (shouldStopBatch) {
