@@ -3,8 +3,8 @@
   "name": "MotionSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
   "fields": [
-    { "name": "link_quality", "type": "int" },
-    { "name": "motion", "type": "boolean" },
-    { "name": "voltage", "type": "int" }
+    { "name": "link_quality", "type": "int", "doc": "Link quality in percent." },
+    { "name": "motion", "type": "boolean", "doc": "Motion detected flag." },
+    { "name": "voltage", "type": "int", "doc": "Battery voltage in millivolts." }
   ]
 }

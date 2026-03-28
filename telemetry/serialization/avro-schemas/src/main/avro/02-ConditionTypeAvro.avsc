@@ -9,5 +9,6 @@
     "TEMPERATURE",
     "CO2LEVEL",
     "HUMIDITY"
-  ]
+  ],
+  "default": "MOTION"
 }

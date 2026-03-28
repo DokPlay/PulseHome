@@ -3,16 +3,17 @@
   "name": "TemperatureSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
   "fields": [
-    { "name": "id", "type": "string" },
-    { "name": "hubId", "type": "string" },
+    { "name": "id", "type": "string", "doc": "Sensor identifier shared with the envelope record." },
+    { "name": "hubId", "type": "string", "doc": "Hub identifier shared with the envelope record." },
     {
       "name": "timestamp",
+      "doc": "Event timestamp shared with the envelope record.",
       "type": {
         "type": "long",
         "logicalType": "timestamp-millis"
       }
     },
-    { "name": "temperature_c", "type": "int" },
-    { "name": "temperature_f", "type": "int" }
+    { "name": "temperature_c", "type": "int", "doc": "Temperature in degrees Celsius." },
+    { "name": "temperature_f", "type": "int", "doc": "Temperature in degrees Fahrenheit." }
   ]
 }
