@@ -31,8 +31,9 @@ class ActionDispatchTrackerTest {
                 eq(1)
         )).thenReturn(1);
 
-        assertThatCode(() -> tracker.markDispatched("hub-1", "scenario-1", timestamp, 7L, actionSpec()))
-                .doesNotThrowAnyException();
+        org.assertj.core.api.Assertions.assertThat(
+                tracker.claimDispatch("hub-1", "scenario-1", timestamp, 7L, actionSpec())
+        ).isTrue();
         verify(repository).insertIgnore("hub-1", "scenario-1", timestamp, 7L, "switch.1", "ACTIVATE", 1);
     }
 
@@ -53,9 +54,22 @@ class ActionDispatchTrackerTest {
                 eq(null)
         )).thenReturn(1);
 
-        assertThatCode(() -> tracker.markDispatched("hub-1", "scenario-1", timestamp, 7L, actionSpec))
-                .doesNotThrowAnyException();
+        org.assertj.core.api.Assertions.assertThat(
+                tracker.claimDispatch("hub-1", "scenario-1", timestamp, 7L, actionSpec)
+        ).isTrue();
         verify(repository).insertIgnore("hub-1", "scenario-1", timestamp, 7L, "switch.1", "ACTIVATE", null);
+    }
+
+    @Test
+    void shouldReleaseDispatchMarkerUsingExactDispatchCoordinates() {
+        ActionDispatchRepository repository = mock(ActionDispatchRepository.class);
+        ActionDispatchTracker tracker = new ActionDispatchTracker(repository);
+        Instant timestamp = Instant.parse("2024-08-06T15:11:24.157Z");
+
+        assertThatCode(() -> tracker.releaseDispatchClaim("hub-1", "scenario-1", timestamp, 7L, actionSpec()))
+                .doesNotThrowAnyException();
+
+        verify(repository).deleteDispatch("hub-1", "scenario-1", timestamp, 7L, "switch.1", ActionType.ACTIVATE, 1);
     }
 
     @Test

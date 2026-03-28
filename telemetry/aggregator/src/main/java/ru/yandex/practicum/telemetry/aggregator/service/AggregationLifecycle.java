@@ -15,6 +15,7 @@ public class AggregationLifecycle implements SmartLifecycle {
 
     private static final Logger log = LoggerFactory.getLogger(AggregationLifecycle.class);
     private static final Duration STOP_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration INTERRUPT_JOIN_TIMEOUT = Duration.ofSeconds(1);
 
     private final AggregationStarter aggregationStarter;
     private final ConfigurableApplicationContext applicationContext;
@@ -90,7 +91,18 @@ public class AggregationLifecycle implements SmartLifecycle {
         }
 
         if (thread.isAlive()) {
-            log.warn("Aggregation thread did not stop within {}", STOP_TIMEOUT);
+            log.warn("Aggregation thread did not stop within {}, interrupting worker thread", STOP_TIMEOUT);
+            thread.interrupt();
+            try {
+                thread.join(INTERRUPT_JOIN_TIMEOUT.toMillis());
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for aggregation thread after interrupt", exception);
+            }
+        }
+
+        if (thread.isAlive()) {
+            log.warn("Aggregation thread is still alive after interrupt fallback");
         }
     }
 

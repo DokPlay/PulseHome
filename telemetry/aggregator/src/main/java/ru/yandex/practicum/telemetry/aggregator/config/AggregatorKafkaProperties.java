@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -36,6 +37,9 @@ public class AggregatorKafkaProperties {
     private Duration topicBootstrapTimeout = Duration.ofSeconds(10);
 
     private boolean topicBootstrapEnabled;
+
+    @Positive
+    private int maxTrackedSensorsPerHub = 10_000;
 
     @NotNull
     @Valid
@@ -97,6 +101,14 @@ public class AggregatorKafkaProperties {
         this.topicBootstrapEnabled = topicBootstrapEnabled;
     }
 
+    public int getMaxTrackedSensorsPerHub() {
+        return maxTrackedSensorsPerHub;
+    }
+
+    public void setMaxTrackedSensorsPerHub(int maxTrackedSensorsPerHub) {
+        this.maxTrackedSensorsPerHub = maxTrackedSensorsPerHub;
+    }
+
     public Consumer getConsumer() {
         return consumer;
     }
@@ -138,6 +150,7 @@ public class AggregatorKafkaProperties {
         private String clientId = "aggregator-client";
 
         @NotBlank
+        @Pattern(regexp = "earliest|latest|none", message = "aggregator.kafka.consumer.autoOffsetReset must be one of: earliest, latest, none")
         private String autoOffsetReset = "earliest";
 
         @Positive

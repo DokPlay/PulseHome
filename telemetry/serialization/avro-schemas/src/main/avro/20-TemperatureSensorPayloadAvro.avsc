@@ -2,6 +2,7 @@
   "type": "record",
   "name": "TemperatureSensorPayloadAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "doc": "Canonical temperature payload for new sensor events without duplicating envelope fields.",
   "fields": [
     { "name": "temperature_c", "type": "int", "doc": "Temperature in degrees Celsius.", "default": 0 },
     { "name": "temperature_f", "type": "int", "doc": "Temperature in degrees Fahrenheit.", "default": 0 }

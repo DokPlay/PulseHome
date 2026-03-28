@@ -83,7 +83,12 @@ public class HubEventProcessor implements Runnable {
                     } catch (Exception exception) {
                         log.error("Skipping hub event after processing failure. topic={}, partition={}, offset={}, key={}",
                                 record.topic(), record.partition(), record.offset(), record.key(), exception);
-                        deadLetterPublisher.publish(record, exception);
+                        if (!deadLetterPublisher.publish(record, exception)) {
+                            throw new IllegalStateException(
+                                    "Hub DLQ publish failed for poisoned record at offset %d".formatted(record.offset()),
+                                    exception
+                            );
+                        }
                     }
                     trackRecord(processedOffsets, record);
                 }

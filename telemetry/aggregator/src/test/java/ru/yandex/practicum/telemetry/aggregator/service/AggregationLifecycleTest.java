@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +61,7 @@ class AggregationLifecycleTest {
         lifecycle.start();
         waitFor(() -> !lifecycle.isRunning());
 
-        verify(context).close();
+        verify(context, timeout(1000)).close();
     }
 
     private void waitFor(Check check) {

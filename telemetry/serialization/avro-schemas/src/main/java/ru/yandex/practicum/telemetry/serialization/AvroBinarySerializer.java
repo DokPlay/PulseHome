@@ -23,6 +23,11 @@ public final class AvroBinarySerializer {
         }
     }
 
+    /**
+     * Legacy raw-binary encoding kept only for backwards-compatible tests and old payload readers.
+     * Prefer {@link #serialize(SpecificRecord)} for all new writes.
+     */
+    @Deprecated(forRemoval = false)
     public static <T extends SpecificRecord> byte[] serializeLegacy(T record) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

@@ -2,6 +2,7 @@
   "type": "record",
   "name": "HubEventAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "doc": "Hub event envelope. The payload union intentionally omits a null branch so unknown event types fail fast instead of being silently dropped.",
   "fields": [
     { "name": "hub_id", "type": "string" },
     {
@@ -13,6 +14,7 @@
     },
     {
       "name": "payload",
+      "doc": "Contract strategy: non-null union branches only. New event types must be appended to the union and rolled out with explicit reader support.",
       "type": [
         "ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro",
         "ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro",

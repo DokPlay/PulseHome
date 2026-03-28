@@ -4,6 +4,7 @@ collector:
   security:
     username: ${COLLECTOR_BASIC_AUTH_USERNAME:collector}
     password: ${COLLECTOR_BASIC_AUTH_PASSWORD}
+    require-https: false
 
 management:
   endpoint:

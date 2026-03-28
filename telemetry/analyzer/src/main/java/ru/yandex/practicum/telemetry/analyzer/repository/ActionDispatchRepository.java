@@ -62,5 +62,28 @@ public interface ActionDispatchRepository extends JpaRepository<ActionDispatch, 
                            @Param("actionType") ActionType actionType,
                            @Param("actionValue") Integer actionValue);
 
+    @Modifying
+    @Transactional
+    @Query("""
+            delete from ActionDispatch dispatch
+            where dispatch.hubId = :hubId
+              and dispatch.scenarioName = :scenarioName
+              and dispatch.snapshotTimestamp = :snapshotTimestamp
+              and dispatch.snapshotVersion = :snapshotVersion
+              and dispatch.sensorId = :sensorId
+              and dispatch.actionType = :actionType
+              and (
+                    (:actionValue is null and dispatch.actionValue is null)
+                 or dispatch.actionValue = :actionValue
+              )
+            """)
+    int deleteDispatch(@Param("hubId") String hubId,
+                       @Param("scenarioName") String scenarioName,
+                       @Param("snapshotTimestamp") Instant snapshotTimestamp,
+                       @Param("snapshotVersion") Long snapshotVersion,
+                       @Param("sensorId") String sensorId,
+                       @Param("actionType") ActionType actionType,
+                       @Param("actionValue") Integer actionValue);
+
     void deleteByHubIdAndSnapshotVersionLessThan(String hubId, Long snapshotVersion);
 }

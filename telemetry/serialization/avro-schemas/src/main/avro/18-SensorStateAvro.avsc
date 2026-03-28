@@ -2,6 +2,7 @@
   "type": "record",
   "name": "SensorStateAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "doc": "Stored sensor state inside a hub snapshot. The data union intentionally omits a null branch to keep unknown payloads visible as contract violations.",
   "fields": [
     {
       "name": "timestamp",
@@ -12,6 +13,7 @@
     },
     {
       "name": "data",
+      "doc": "Contract strategy: append-only, non-null union. Readers are expected to understand every branch they consume.",
       "type": [
         "ru.yandex.practicum.kafka.telemetry.event.ClimateSensorAvro",
         "ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro",

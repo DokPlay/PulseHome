@@ -50,6 +50,9 @@ public class AggregationStarter {
         consumerClosed.set(false);
         try {
             snapshotStateRestorer.restorePublishedSnapshots();
+            if (!active.get()) {
+                return;
+            }
             managedConsumer.subscribe(List.of(properties.getTopics().getSensors()));
 
             while (active.get()) {
@@ -91,6 +94,7 @@ public class AggregationStarter {
 
     public void stop() {
         active.set(false);
+        snapshotStateRestorer.cancelRestore();
         if (consumerClosed.get()) {
             return;
         }

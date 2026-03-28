@@ -131,6 +131,22 @@ flowchart LR
 | `telemetry.hubs.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
 | `telemetry.snapshots.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
 
+## Политика контрактов и валидации
+
+- Avro unions для event payloads и snapshot sensor data намеренно не содержат `null`-ветку.
+  Это осознанная контрактная стратегия: неподдерживаемый payload должен падать явно, а не деградировать молча.
+- Новые Avro payload-типы добавляются только append-only в существующие unions и выкатываются вместе с поддержкой reader’ов.
+- Валидация sensor DTO сейчас проверяет структурную корректность, обязательные поля и размеры строк.
+- Product-specific физические диапазоны для значений вроде temperature, luminosity, link quality, voltage или CO2 нужно добавлять только после отдельного продуктового решения по поддерживаемому sensor fleet и правилам калибровки.
+- Основные точки, куда это потом вносить для production-решения: слой DTO-валидации в `telemetry/collector/src/main/java/.../dto/sensor` и документация shared Avro-схем в `telemetry/serialization/avro-schemas/src/main/avro`.
+
+## Политика миграций базы данных
+
+- Версионированные Flyway-миграции считаются неизменяемой production-историей.
+- Если историческая миграция со временем становится избыточной для свежих инсталляций, она всё равно сохраняется как часть корректного upgrade path для уже развернутых сред.
+- Избыточные или defensive-миграции убираются только при отдельном baseline reset или в рамках будущей крупной консолидации миграций, но не через редактирование уже применённого versioned-файла.
+- Именно поэтому исторические шаги вроде существующей `V8` migration остаются в цепочке: проект предпочитает auditability и стабильность checksum’ов переписыванию истории базы.
+
 ## Технологический стек
 
 - Java 25

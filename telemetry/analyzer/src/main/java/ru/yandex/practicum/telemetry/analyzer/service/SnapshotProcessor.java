@@ -102,7 +102,12 @@ public class SnapshotProcessor {
                     } catch (Exception exception) {
                         log.error("Snapshot analysis failed, routing record to DLQ. topic={}, partition={}, offset={}",
                                 record.topic(), record.partition(), record.offset(), exception);
-                        snapshotDeadLetterPublisher.publish(record, exception);
+                        if (!snapshotDeadLetterPublisher.publish(record, exception)) {
+                            throw new IllegalStateException(
+                                    "Snapshot DLQ publish failed for poisoned record at offset %d".formatted(record.offset()),
+                                    exception
+                            );
+                        }
                         trackRecord(processedOffsets, record);
                     }
                 }

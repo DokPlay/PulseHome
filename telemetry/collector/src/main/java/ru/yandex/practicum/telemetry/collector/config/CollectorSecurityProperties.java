@@ -14,6 +14,8 @@ public class CollectorSecurityProperties {
     @NotBlank
     private String password;
 
+    private boolean requireHttps;
+
     public String getUsername() {
         return username;
     }
@@ -28,5 +30,13 @@ public class CollectorSecurityProperties {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public boolean isRequireHttps() {
+        return requireHttps;
+    }
+
+    public void setRequireHttps(boolean requireHttps) {
+        this.requireHttps = requireHttps;
     }
 }

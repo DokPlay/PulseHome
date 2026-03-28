@@ -2,6 +2,7 @@
   "type": "record",
   "name": "SensorEventAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "doc": "Sensor event envelope. The payload union intentionally omits a null branch so unsupported payloads fail fast during rollout.",
   "fields": [
     { "name": "id", "type": "string" },
     { "name": "hubId", "type": "string" },
@@ -14,6 +15,7 @@
     },
     {
       "name": "payload",
+      "doc": "Contract strategy: append-only, non-null union. New payloads must be appended and released together with compatible readers.",
       "type": [
         "ru.yandex.practicum.kafka.telemetry.event.ClimateSensorAvro",
         "ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro",

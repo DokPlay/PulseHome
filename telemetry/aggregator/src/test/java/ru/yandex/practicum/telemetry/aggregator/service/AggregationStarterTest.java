@@ -183,6 +183,28 @@ class AggregationStarterTest {
         verify(publisher).close();
     }
 
+    @Test
+    void shouldCancelSnapshotRestoreWhenStopping() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, SensorEventAvro> consumer = mock(Consumer.class);
+        SnapshotAggregationService aggregationService = mock(SnapshotAggregationService.class);
+        SnapshotPublisher publisher = mock(SnapshotPublisher.class);
+        SnapshotStateRestorer snapshotStateRestorer = mock(SnapshotStateRestorer.class);
+
+        AggregationStarter starter = new AggregationStarter(
+                consumer,
+                new AggregatorKafkaProperties(),
+                aggregationService,
+                publisher,
+                snapshotStateRestorer
+        );
+
+        starter.stop();
+
+        verify(snapshotStateRestorer).cancelRestore();
+        verify(consumer).wakeup();
+    }
+
     private SensorEventAvro sensorEvent() {
         return SensorEventAvro.newBuilder()
                 .setId("sensor.motion.1")

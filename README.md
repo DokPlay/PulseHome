@@ -131,6 +131,22 @@ flowchart LR
 | `telemetry.hubs.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
 | `telemetry.snapshots.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
 
+## Contract and validation policy
+
+- Avro unions intentionally do not include a `null` branch for event payloads and snapshot sensor data.
+  This is a deliberate contract strategy: unsupported payload types must fail fast instead of degrading silently.
+- New Avro payloads are appended to existing unions and released together with reader support.
+- Sensor DTO validation currently enforces structural correctness, required fields, and string sizes.
+- Product-specific physical bounds for values such as temperature, luminosity, link quality, voltage, or CO2 should be added only after the supported device fleet and calibration ranges are formally approved.
+- The implementation points for those future bounds are the Collector DTO validation layer and the shared Avro schema docs in `telemetry/collector/src/main/java/.../dto/sensor` and `telemetry/serialization/avro-schemas/src/main/avro`.
+
+## Database migration policy
+
+- Flyway versioned migrations are treated as immutable production history.
+- If a historical migration later becomes redundant for fresh installs, it is still preserved as part of the upgrade path for already deployed environments.
+- Redundant or defensive migrations are cleaned up only during an explicit baseline reset or a future major migration consolidation, never by editing an applied versioned file in place.
+- This is why historical steps such as the existing `V8` index migration remain in the chain: the project prefers auditability and checksum stability over rewriting database history.
+
 ## Technology stack
 
 - Java 25

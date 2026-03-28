@@ -153,6 +153,72 @@ class HubConfigurationServiceJpaTest {
         assertThat(scenarios.getFirst().actions().getFirst().value()).isNull();
     }
 
+    @Test
+    void shouldUpsertExistingScenarioDefinition() {
+        hubConfigurationService.handleHubEvent(deviceAddedEvent("hub-1", "sensor.light.1", DeviceTypeAvro.LIGHT_SENSOR));
+        hubConfigurationService.handleHubEvent(deviceAddedEvent("hub-1", "switch.1", DeviceTypeAvro.SWITCH_SENSOR));
+        hubConfigurationService.handleHubEvent(HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName("hall-light")
+                        .setConditions(List.of(
+                                ScenarioConditionAvro.newBuilder()
+                                        .setSensorId("sensor.light.1")
+                                        .setType(ConditionTypeAvro.LUMINOSITY)
+                                        .setOperation(ConditionOperationAvro.LOWER_THAN)
+                                        .setValue(20)
+                                        .build()
+                        ))
+                        .setActions(List.of(
+                                DeviceActionAvro.newBuilder()
+                                        .setSensorId("switch.1")
+                                        .setType(ActionTypeAvro.ACTIVATE)
+                                        .setValue(1)
+                                        .build()
+                        ))
+                        .build())
+                .build());
+
+        hubConfigurationService.handleHubEvent(HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:12:24.157Z"))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName("hall-light")
+                        .setConditions(List.of(
+                                ScenarioConditionAvro.newBuilder()
+                                        .setSensorId("sensor.light.1")
+                                        .setType(ConditionTypeAvro.LUMINOSITY)
+                                        .setOperation(ConditionOperationAvro.GREATER_THAN)
+                                        .setValue(50)
+                                        .build()
+                        ))
+                        .setActions(List.of(
+                                DeviceActionAvro.newBuilder()
+                                        .setSensorId("switch.1")
+                                        .setType(ActionTypeAvro.DEACTIVATE)
+                                        .build()
+                        ))
+                        .build())
+                .build());
+
+        List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios("hub-1");
+
+        assertThat(scenarios).hasSize(1);
+        assertThat(scenarios.getFirst().name()).isEqualTo("hall-light");
+        assertThat(scenarios.getFirst().conditions()).singleElement()
+                .satisfies(condition -> {
+                    assertThat(condition.type()).isEqualTo(ConditionType.LUMINOSITY);
+                    assertThat(condition.operation()).isEqualTo(ConditionOperation.GREATER_THAN);
+                    assertThat(condition.value()).isEqualTo(50);
+                });
+        assertThat(scenarios.getFirst().actions()).singleElement()
+                .satisfies(action -> {
+                    assertThat(action.type()).isEqualTo(ActionType.DEACTIVATE);
+                    assertThat(action.value()).isNull();
+                });
+    }
+
     private HubEventAvro deviceAddedEvent(String hubId, String sensorId, DeviceTypeAvro type) {
         return HubEventAvro.newBuilder()
                 .setHubId(hubId)

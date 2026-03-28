@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.avro.Schema;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,6 +45,28 @@ class AvroSchemaCompatibilityTest {
     }
 
     @Test
+    void shouldOnlyAppendNewSensorStateUnionBranches() {
+        assertEquals(
+                List.of(
+                        "ClimateSensorAvro",
+                        "LightSensorAvro",
+                        "MotionSensorAvro",
+                        "SwitchSensorAvro",
+                        "TemperatureSensorAvro",
+                        "TemperatureSensorPayloadAvro"
+                ),
+                payloadBranchNames(SensorStateAvro.getClassSchema(), "data")
+        );
+    }
+
+    @Test
+    void shouldKeepPayloadUnionsNonNullableByContract() {
+        assertTrue(hasNoNullBranch(HubEventAvro.getClassSchema(), "payload"));
+        assertTrue(hasNoNullBranch(SensorEventAvro.getClassSchema(), "payload"));
+        assertTrue(hasNoNullBranch(SensorStateAvro.getClassSchema(), "data"));
+    }
+
+    @Test
     void shouldKeepEnumDefaultsDefinedForForwardCompatibility() throws IOException {
         assertEquals("MOTION_SENSOR", enumDefault("src/main/avro/01-DeviceTypeAvro.avsc"));
         assertEquals("MOTION", enumDefault("src/main/avro/02-ConditionTypeAvro.avsc"));
@@ -58,7 +81,7 @@ class AvroSchemaCompatibilityTest {
         assertAllFieldsHaveDefaults("src/main/avro/14-MotionSensorAvro.avsc");
         assertAllFieldsHaveDefaults("src/main/avro/15-SwitchSensorAvro.avsc");
         assertAllFieldsHaveDefaults("src/main/avro/16-TemperatureSensorAvro.avsc");
-        assertAllFieldsHaveDefaults("src/main/avro/19-TemperatureSensorPayloadAvro.avsc");
+        assertAllFieldsHaveDefaults("src/main/avro/20-TemperatureSensorPayloadAvro.avsc");
     }
 
     private List<String> payloadBranchNames(org.apache.avro.Schema schema, String fieldName) {
@@ -70,6 +93,11 @@ class AvroSchemaCompatibilityTest {
     private String enumDefault(String path) throws IOException {
         Schema schema = new Schema.Parser().parse(Files.readString(Path.of(path)));
         return schema.getEnumDefault();
+    }
+
+    private boolean hasNoNullBranch(Schema schema, String fieldName) {
+        return schema.getField(fieldName).schema().getTypes().stream()
+                .noneMatch(branch -> branch.getType() == Schema.Type.NULL);
     }
 
     private void assertAllFieldsHaveDefaults(String path) throws IOException {
