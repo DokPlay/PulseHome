@@ -7,7 +7,6 @@ ENV MAVEN_OPTS="--sun-misc-unsafe-memory-access=allow"
 COPY pom.xml ./
 COPY telemetry telemetry
 COPY infra infra
-COPY commerce commerce
 
 RUN mvn -B -DskipTests package
 

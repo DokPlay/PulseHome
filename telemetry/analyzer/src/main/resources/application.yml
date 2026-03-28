@@ -23,6 +23,8 @@ spring:
 analyzer:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    topic-bootstrap-enabled: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
+    topic-bootstrap-timeout: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
     topics:
       hubs: telemetry.hubs.v1
       hubs-dlq: telemetry.hubs.dlq.v1

@@ -24,6 +24,12 @@ public class CollectorKafkaProperties {
     private Duration sendTimeout = Duration.ofSeconds(10);
 
     @NotNull
+    @DurationMin(seconds = 1)
+    private Duration topicBootstrapTimeout = Duration.ofSeconds(10);
+
+    private boolean topicBootstrapEnabled;
+
+    @NotNull
     @Valid
     private Producer producer = new Producer();
 
@@ -45,6 +51,22 @@ public class CollectorKafkaProperties {
 
     public void setSendTimeout(Duration sendTimeout) {
         this.sendTimeout = sendTimeout;
+    }
+
+    public Duration getTopicBootstrapTimeout() {
+        return topicBootstrapTimeout;
+    }
+
+    public void setTopicBootstrapTimeout(Duration topicBootstrapTimeout) {
+        this.topicBootstrapTimeout = topicBootstrapTimeout;
+    }
+
+    public boolean isTopicBootstrapEnabled() {
+        return topicBootstrapEnabled;
+    }
+
+    public void setTopicBootstrapEnabled(boolean topicBootstrapEnabled) {
+        this.topicBootstrapEnabled = topicBootstrapEnabled;
     }
 
     public Topics getTopics() {

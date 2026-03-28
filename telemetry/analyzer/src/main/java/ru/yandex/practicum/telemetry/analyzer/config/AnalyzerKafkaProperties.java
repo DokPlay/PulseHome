@@ -29,6 +29,11 @@ public class AnalyzerKafkaProperties {
     @Valid
     private ConsumerSettings hubsConsumer = new ConsumerSettings("analyzer-hubs");
 
+    @NotNull
+    private Duration topicBootstrapTimeout = Duration.ofSeconds(10);
+
+    private boolean topicBootstrapEnabled;
+
     public String getBootstrapServers() {
         return bootstrapServers;
     }
@@ -59,6 +64,22 @@ public class AnalyzerKafkaProperties {
 
     public void setHubsConsumer(ConsumerSettings hubsConsumer) {
         this.hubsConsumer = hubsConsumer;
+    }
+
+    public Duration getTopicBootstrapTimeout() {
+        return topicBootstrapTimeout;
+    }
+
+    public void setTopicBootstrapTimeout(Duration topicBootstrapTimeout) {
+        this.topicBootstrapTimeout = topicBootstrapTimeout;
+    }
+
+    public boolean isTopicBootstrapEnabled() {
+        return topicBootstrapEnabled;
+    }
+
+    public void setTopicBootstrapEnabled(boolean topicBootstrapEnabled) {
+        this.topicBootstrapEnabled = topicBootstrapEnabled;
     }
 
     public static class Topics {

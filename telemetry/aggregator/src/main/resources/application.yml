@@ -12,6 +12,8 @@ aggregator:
     poll-timeout: ${AGGREGATOR_KAFKA_POLL_TIMEOUT:1s}
     send-timeout: ${AGGREGATOR_KAFKA_SEND_TIMEOUT:10s}
     snapshot-restore-timeout: ${AGGREGATOR_KAFKA_SNAPSHOT_RESTORE_TIMEOUT:30s}
+    topic-bootstrap-enabled: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
+    topic-bootstrap-timeout: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
     consumer:
       group-id: ${AGGREGATOR_KAFKA_GROUP_ID:aggregator}
       client-id: ${AGGREGATOR_KAFKA_CLIENT_ID:aggregator-client}

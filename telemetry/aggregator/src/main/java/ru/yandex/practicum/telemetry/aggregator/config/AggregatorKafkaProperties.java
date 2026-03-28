@@ -32,6 +32,12 @@ public class AggregatorKafkaProperties {
     private Duration snapshotRestoreTimeout = Duration.ofSeconds(30);
 
     @NotNull
+    @DurationMin(seconds = 1)
+    private Duration topicBootstrapTimeout = Duration.ofSeconds(10);
+
+    private boolean topicBootstrapEnabled;
+
+    @NotNull
     @Valid
     private Consumer consumer = new Consumer();
 
@@ -73,6 +79,22 @@ public class AggregatorKafkaProperties {
 
     public void setSnapshotRestoreTimeout(Duration snapshotRestoreTimeout) {
         this.snapshotRestoreTimeout = snapshotRestoreTimeout;
+    }
+
+    public Duration getTopicBootstrapTimeout() {
+        return topicBootstrapTimeout;
+    }
+
+    public void setTopicBootstrapTimeout(Duration topicBootstrapTimeout) {
+        this.topicBootstrapTimeout = topicBootstrapTimeout;
+    }
+
+    public boolean isTopicBootstrapEnabled() {
+        return topicBootstrapEnabled;
+    }
+
+    public void setTopicBootstrapEnabled(boolean topicBootstrapEnabled) {
+        this.topicBootstrapEnabled = topicBootstrapEnabled;
     }
 
     public Consumer getConsumer() {

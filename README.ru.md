@@ -94,7 +94,6 @@ flowchart LR
 | `telemetry/serialization/avro-schemas` | Общие Avro-контракты, serializer/deserializer helper’ы, generated classes |
 | `telemetry/serialization/proto-schemas` | Общие protobuf и gRPC-контракты |
 | `infra/hub-router-stub` | Локальный gRPC stub для end-to-end smoke testing |
-| `commerce` | Зарезервированная точка расширения, пока не участвует в активном telemetry flow |
 
 ## Роли сервисов
 

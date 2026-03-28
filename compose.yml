@@ -65,6 +65,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       COLLECTOR_BASIC_AUTH_USERNAME: collector
       COLLECTOR_BASIC_AUTH_PASSWORD: collector-secret
+      COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
     ports:
       - "8080:8080"
 
@@ -80,6 +81,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
 
   analyzer:
     build:
@@ -97,6 +99,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
       ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analyzer
       ANALYZER_DATASOURCE_USERNAME: pulsehome
       ANALYZER_DATASOURCE_PASSWORD: pulsehome
