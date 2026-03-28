@@ -18,15 +18,15 @@ aggregator:
     consumer:
       group-id: ${AGGREGATOR_KAFKA_GROUP_ID:aggregator}
       client-id: ${AGGREGATOR_KAFKA_CLIENT_ID:aggregator-client}
-      auto-offset-reset: earliest
-      max-poll-records: 500
+      auto-offset-reset: ${AGGREGATOR_KAFKA_AUTO_OFFSET_RESET:earliest}
+      max-poll-records: ${AGGREGATOR_KAFKA_MAX_POLL_RECORDS:500}
     producer:
-      acks: all
-      enable-idempotence: true
-      compression-type: snappy
-      linger-ms: 5
-      batch-size: 32768
-      max-in-flight-requests-per-connection: 5
+      acks: ${AGGREGATOR_KAFKA_ACKS:all}
+      enable-idempotence: ${AGGREGATOR_KAFKA_ENABLE_IDEMPOTENCE:true}
+      compression-type: ${AGGREGATOR_KAFKA_COMPRESSION_TYPE:snappy}
+      linger-ms: ${AGGREGATOR_KAFKA_LINGER_MS:5}
+      batch-size: ${AGGREGATOR_KAFKA_BATCH_SIZE:32768}
+      max-in-flight-requests-per-connection: ${AGGREGATOR_KAFKA_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION:5}
     topics:
-      sensors: telemetry.sensors.v1
-      snapshots: telemetry.snapshots.v1
+      sensors: ${AGGREGATOR_KAFKA_SENSORS_TOPIC:telemetry.sensors.v1}
+      snapshots: ${AGGREGATOR_KAFKA_SNAPSHOTS_TOPIC:telemetry.snapshots.v1}

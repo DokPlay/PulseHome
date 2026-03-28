@@ -1,3 +1,0 @@
-aggregator:
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}

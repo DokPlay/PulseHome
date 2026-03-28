@@ -11,7 +11,7 @@ public class HubRouterStubProperties {
 
     @Min(1)
     @Max(65535)
-    private int port = 59090;
+    private int port;
 
     public int getPort() {
         return port;

@@ -18,7 +18,7 @@ import java.time.Duration;
 public class AggregatorKafkaProperties {
 
     @NotBlank
-    private String bootstrapServers = "localhost:9092";
+    private String bootstrapServers;
 
     @NotNull
     @DurationMin(millis = 100)
