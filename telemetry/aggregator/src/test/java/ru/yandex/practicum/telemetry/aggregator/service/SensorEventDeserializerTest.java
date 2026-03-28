@@ -34,4 +34,27 @@ class SensorEventDeserializerTest {
             assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
         }
     }
+
+    @Test
+    void shouldDeserializeLegacyRawBinaryPayload() {
+        SensorEventAvro event = SensorEventAvro.newBuilder()
+                .setId("sensor.motion.2")
+                .setHubId("hub-legacy")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(MotionSensorAvro.newBuilder()
+                        .setLinkQuality(77)
+                        .setMotion(false)
+                        .setVoltage(210)
+                        .build())
+                .build();
+
+        byte[] bytes = AvroBinarySerializer.serializeLegacy(event);
+        try (SensorEventDeserializer deserializer = new SensorEventDeserializer()) {
+            SensorEventAvro deserialized = deserializer.deserialize("telemetry.sensors.v1", bytes);
+
+            assertThat(deserialized.getId()).isEqualTo("sensor.motion.2");
+            assertThat(deserialized.getHubId()).isEqualTo("hub-legacy");
+            assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
+        }
+    }
 }

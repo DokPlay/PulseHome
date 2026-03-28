@@ -1,33 +1,35 @@
 package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
-public class LightSensorEvent extends SensorEvent {
+import java.time.Instant;
 
-    @NotNull
-    private Integer linkQuality;
+@JsonTypeName("LIGHT_SENSOR_EVENT")
+public record LightSensorEvent(
+        @NotBlank String id,
+        @NotBlank String hubId,
+        Instant timestamp,
+        @NotNull Integer linkQuality,
+        @NotNull Integer luminosity
+) implements SensorEvent {
 
-    @NotNull
-    private Integer luminosity;
+    public LightSensorEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
 
-    public LightSensorEvent() {
-        super(SensorEventType.LIGHT_SENSOR_EVENT);
+    @Override
+    public SensorEventType type() {
+        return SensorEventType.LIGHT_SENSOR_EVENT;
     }
 
     public Integer getLinkQuality() {
         return linkQuality;
     }
 
-    public void setLinkQuality(Integer linkQuality) {
-        this.linkQuality = linkQuality;
-    }
-
     public Integer getLuminosity() {
         return luminosity;
-    }
-
-    public void setLuminosity(Integer luminosity) {
-        this.luminosity = luminosity;
     }
 }

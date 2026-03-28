@@ -31,12 +31,13 @@ class HubEventAvroMapperTest {
 
     @Test
     void shouldMapScenarioAddedEventAndConvertBooleanLikeConditions() {
-        ScenarioAddedEvent event = new ScenarioAddedEvent();
-        event.setHubId("hub-2");
-        event.setTimestamp(Instant.parse("2024-08-06T16:54:03.129Z"));
-        event.setName("Night light");
-        event.setConditions(List.of(motionCondition(), temperatureCondition()));
-        event.setActions(List.of(action()));
+        ScenarioAddedEvent event = new ScenarioAddedEvent(
+                "hub-2",
+                Instant.parse("2024-08-06T16:54:03.129Z"),
+                "Night light",
+                List.of(motionCondition(), temperatureCondition()),
+                List.of(action())
+        );
 
         HubEvent avroEvent = event;
         ScenarioAddedEventAvro payload = (ScenarioAddedEventAvro) mapper.toAvro(avroEvent).getPayload();
@@ -53,11 +54,13 @@ class HubEventAvroMapperTest {
 
     @Test
     void shouldRejectInvalidBooleanLikeConditionValues() {
-        ScenarioAddedEvent event = new ScenarioAddedEvent();
-        event.setHubId("hub-2");
-        event.setName("Broken scenario");
-        event.setConditions(List.of(invalidSwitchCondition()));
-        event.setActions(List.of(action()));
+        ScenarioAddedEvent event = new ScenarioAddedEvent(
+                "hub-2",
+                null,
+                "Broken scenario",
+                List.of(invalidSwitchCondition()),
+                List.of(action())
+        );
 
         assertThatThrownBy(() -> mapper.toAvro(event))
                 .isInstanceOf(InvalidScenarioConditionValueException.class)
@@ -66,10 +69,7 @@ class HubEventAvroMapperTest {
 
     @Test
     void shouldMapDeviceAddedEvent() {
-        DeviceAddedEvent event = new DeviceAddedEvent();
-        event.setHubId("hub-1");
-        event.setId("sensor.motion.1");
-        event.setDeviceType(DeviceType.MOTION_SENSOR);
+        DeviceAddedEvent event = new DeviceAddedEvent("hub-1", null, "sensor.motion.1", DeviceType.MOTION_SENSOR);
 
         DeviceAddedEventAvro payload = (DeviceAddedEventAvro) mapper.toAvro(event).getPayload();
 
@@ -79,9 +79,7 @@ class HubEventAvroMapperTest {
 
     @Test
     void shouldMapDeviceRemovedEvent() {
-        DeviceRemovedEvent event = new DeviceRemovedEvent();
-        event.setHubId("hub-1");
-        event.setId("sensor.motion.1");
+        DeviceRemovedEvent event = new DeviceRemovedEvent("hub-1", null, "sensor.motion.1");
 
         DeviceRemovedEventAvro payload = (DeviceRemovedEventAvro) mapper.toAvro(event).getPayload();
 
@@ -90,9 +88,7 @@ class HubEventAvroMapperTest {
 
     @Test
     void shouldMapScenarioRemovedEvent() {
-        ScenarioRemovedEvent event = new ScenarioRemovedEvent();
-        event.setHubId("hub-1");
-        event.setName("Night light");
+        ScenarioRemovedEvent event = new ScenarioRemovedEvent("hub-1", null, "Night light");
 
         ScenarioRemovedEventAvro payload = (ScenarioRemovedEventAvro) mapper.toAvro(event).getPayload();
 
@@ -100,37 +96,18 @@ class HubEventAvroMapperTest {
     }
 
     private ScenarioCondition motionCondition() {
-        ScenarioCondition condition = new ScenarioCondition();
-        condition.setSensorId("sensor.motion.1");
-        condition.setType(ConditionType.MOTION);
-        condition.setOperation(ConditionOperation.EQUALS);
-        condition.setValue(1);
-        return condition;
+        return new ScenarioCondition("sensor.motion.1", ConditionType.MOTION, ConditionOperation.EQUALS, 1);
     }
 
     private ScenarioCondition temperatureCondition() {
-        ScenarioCondition condition = new ScenarioCondition();
-        condition.setSensorId("sensor.temperature.1");
-        condition.setType(ConditionType.TEMPERATURE);
-        condition.setOperation(ConditionOperation.GREATER_THAN);
-        condition.setValue(23);
-        return condition;
+        return new ScenarioCondition("sensor.temperature.1", ConditionType.TEMPERATURE, ConditionOperation.GREATER_THAN, 23);
     }
 
     private ScenarioCondition invalidSwitchCondition() {
-        ScenarioCondition condition = new ScenarioCondition();
-        condition.setSensorId("sensor.switch.1");
-        condition.setType(ConditionType.SWITCH);
-        condition.setOperation(ConditionOperation.EQUALS);
-        condition.setValue(2);
-        return condition;
+        return new ScenarioCondition("sensor.switch.1", ConditionType.SWITCH, ConditionOperation.EQUALS, 2);
     }
 
     private DeviceAction action() {
-        DeviceAction action = new DeviceAction();
-        action.setSensorId("sensor.lamp.1");
-        action.setType(ActionType.SET_VALUE);
-        action.setValue(75);
-        return action;
+        return new DeviceAction("sensor.lamp.1", ActionType.SET_VALUE, 75);
     }
 }

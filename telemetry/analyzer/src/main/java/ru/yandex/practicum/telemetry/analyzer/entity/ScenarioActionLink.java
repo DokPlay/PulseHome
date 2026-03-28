@@ -6,6 +6,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.Hibernate;
+
+import java.util.Objects;
 
 @Entity
 @Table(name = "scenario_actions")
@@ -50,5 +53,22 @@ public class ScenarioActionLink {
 
     public Action getAction() {
         return action;
+    }
+
+    @Override
+    public final boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+        if (object == null || Hibernate.getClass(this) != Hibernate.getClass(object)) {
+            return false;
+        }
+        ScenarioActionLink other = (ScenarioActionLink) object;
+        return id != null && Objects.equals(id, other.id);
+    }
+
+    @Override
+    public final int hashCode() {
+        return Hibernate.getClass(this).hashCode();
     }
 }

@@ -18,7 +18,7 @@ enum ActionTypeProto {
 message DeviceActionProto {
     string sensor_id = 1;
     ActionTypeProto type = 2;
-    int32 value = 3;
+    optional int32 value = 3;
 }
 
 message DeviceActionRequest {

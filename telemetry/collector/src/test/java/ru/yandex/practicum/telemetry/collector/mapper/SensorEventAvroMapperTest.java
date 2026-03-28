@@ -9,7 +9,6 @@ import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.ClimateSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.LightSensorEvent;
-import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.MotionSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.SwitchSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.TemperatureSensorEvent;
@@ -24,14 +23,14 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldMapMotionSensorEvent() {
-        MotionSensorEvent event = new MotionSensorEvent();
-        event.setId("sensor.motion.1");
-        event.setHubId("hub-1");
-        event.setTimestamp(Instant.parse("2024-08-06T16:54:03.129Z"));
-        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
-        event.setLinkQuality(88);
-        event.setMotion(true);
-        event.setVoltage(120);
+        MotionSensorEvent event = new MotionSensorEvent(
+                "sensor.motion.1",
+                "hub-1",
+                Instant.parse("2024-08-06T16:54:03.129Z"),
+                88,
+                true,
+                120
+        );
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
@@ -46,13 +45,13 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldMapTemperatureSensorEventWithoutDuplicatedEnvelopeFields() {
-        TemperatureSensorEvent event = new TemperatureSensorEvent();
-        event.setId("sensor.temperature.1");
-        event.setHubId("hub-3");
-        event.setTimestamp(Instant.parse("2024-08-06T16:54:03.129Z"));
-        event.setType(SensorEventType.TEMPERATURE_SENSOR_EVENT);
-        event.setTemperatureC(23);
-        event.setTemperatureF(73);
+        TemperatureSensorEvent event = new TemperatureSensorEvent(
+                "sensor.temperature.1",
+                "hub-3",
+                Instant.parse("2024-08-06T16:54:03.129Z"),
+                23,
+                73
+        );
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
@@ -66,12 +65,7 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldKeepGeneratedTimestampOnlyInTemperatureEventWrapper() {
-        TemperatureSensorEvent event = new TemperatureSensorEvent();
-        event.setId("sensor.temperature.2");
-        event.setHubId("hub-4");
-        event.setType(SensorEventType.TEMPERATURE_SENSOR_EVENT);
-        event.setTemperatureC(20);
-        event.setTemperatureF(68);
+        TemperatureSensorEvent event = new TemperatureSensorEvent("sensor.temperature.2", "hub-4", null, 20, 68);
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
@@ -84,13 +78,7 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldMapClimateSensorEvent() {
-        ClimateSensorEvent event = new ClimateSensorEvent();
-        event.setId("sensor.climate.1");
-        event.setHubId("hub-7");
-        event.setType(SensorEventType.CLIMATE_SENSOR_EVENT);
-        event.setTemperatureC(22);
-        event.setHumidity(48);
-        event.setCo2Level(600);
+        ClimateSensorEvent event = new ClimateSensorEvent("sensor.climate.1", "hub-7", null, 22, 48, 600);
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
@@ -103,12 +91,7 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldMapLightSensorEvent() {
-        LightSensorEvent event = new LightSensorEvent();
-        event.setId("sensor.light.1");
-        event.setHubId("hub-8");
-        event.setType(SensorEventType.LIGHT_SENSOR_EVENT);
-        event.setLinkQuality(77);
-        event.setLuminosity(320);
+        LightSensorEvent event = new LightSensorEvent("sensor.light.1", "hub-8", null, 77, 320);
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
@@ -120,11 +103,7 @@ class SensorEventAvroMapperTest {
 
     @Test
     void shouldMapSwitchSensorEvent() {
-        SwitchSensorEvent event = new SwitchSensorEvent();
-        event.setId("sensor.switch.1");
-        event.setHubId("hub-9");
-        event.setType(SensorEventType.SWITCH_SENSOR_EVENT);
-        event.setState(true);
+        SwitchSensorEvent event = new SwitchSensorEvent("sensor.switch.1", "hub-9", null, true);
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 

@@ -8,16 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
 
 import java.time.Instant;
+import java.util.Objects;
+import org.hibernate.Hibernate;
 
 @Entity
-@Table(name = "action_dispatches", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_action_dispatches_snapshot_action",
-                columnNames = {"hub_id", "scenario_name", "snapshot_version", "sensor_id", "action_type", "action_value"})
-})
+@Table(name = "action_dispatches")
 public class ActionDispatch {
 
     @Id
@@ -43,7 +41,7 @@ public class ActionDispatch {
     @Column(name = "action_type", nullable = false)
     private ActionType actionType;
 
-    @Column(name = "action_value", nullable = false)
+    @Column(name = "action_value")
     private Integer actionValue;
 
     public ActionDispatch() {
@@ -95,5 +93,22 @@ public class ActionDispatch {
 
     public Integer getActionValue() {
         return actionValue;
+    }
+
+    @Override
+    public final boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+        if (object == null || Hibernate.getClass(this) != Hibernate.getClass(object)) {
+            return false;
+        }
+        ActionDispatch other = (ActionDispatch) object;
+        return id != null && Objects.equals(id, other.id);
+    }
+
+    @Override
+    public final int hashCode() {
+        return Hibernate.getClass(this).hashCode();
     }
 }

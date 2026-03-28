@@ -14,6 +14,7 @@ public class BaseAvroDeserializer<T extends SpecificRecordBase> implements Deser
 
     private final DecoderFactory decoderFactory;
     private final SpecificDatumReader<T> datumReader;
+    private final Schema schema;
 
     public BaseAvroDeserializer(Schema schema) {
         this(DecoderFactory.get(), schema);
@@ -21,6 +22,7 @@ public class BaseAvroDeserializer<T extends SpecificRecordBase> implements Deser
 
     public BaseAvroDeserializer(DecoderFactory decoderFactory, Schema schema) {
         this.decoderFactory = decoderFactory;
+        this.schema = schema;
         this.datumReader = new SpecificDatumReader<>(schema);
     }
 
@@ -31,6 +33,9 @@ public class BaseAvroDeserializer<T extends SpecificRecordBase> implements Deser
         }
 
         try {
+            if (AvroEncodingSupport.isSingleObjectEncoded(data)) {
+                return AvroEncodingSupport.decodeSingleObject(schema, data);
+            }
             BinaryDecoder decoder = decoderFactory.binaryDecoder(data, null);
             return datumReader.read(null, decoder);
         } catch (IOException exception) {

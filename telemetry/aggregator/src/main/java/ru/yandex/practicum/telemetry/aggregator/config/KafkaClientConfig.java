@@ -6,13 +6,13 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
+import ru.yandex.practicum.telemetry.serialization.AvroMessageSerializer;
 import ru.yandex.practicum.telemetry.serialization.SensorEventDeserializer;
 import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
 
@@ -55,7 +55,7 @@ public class KafkaClientConfig {
     }
 
     @Bean(destroyMethod = "")
-    public Producer<String, byte[]> snapshotProducer(AggregatorKafkaProperties properties) {
+    public Producer<String, SensorsSnapshotAvro> snapshotProducer(AggregatorKafkaProperties properties) {
         int sendTimeoutMs = Math.toIntExact(properties.getSendTimeout().toMillis());
         AggregatorKafkaProperties.Producer producer = properties.getProducer();
         int maxRequestTimeoutMs = Math.max(1, sendTimeoutMs - producer.getLingerMs() - 1);
@@ -64,7 +64,7 @@ public class KafkaClientConfig {
         Map<String, Object> configuration = new HashMap<>();
         configuration.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
         configuration.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
+        configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, AvroMessageSerializer.class);
         configuration.put(ProducerConfig.ACKS_CONFIG, producer.getAcks());
         configuration.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, producer.isEnableIdempotence());
         configuration.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, producer.getCompressionType());

@@ -17,6 +17,14 @@ public final class AvroBinarySerializer {
 
     public static <T extends SpecificRecord> byte[] serialize(T record) {
         try {
+            return AvroEncodingSupport.encode(record);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Failed to serialize Avro record", exception);
+        }
+    }
+
+    public static <T extends SpecificRecord> byte[] serializeLegacy(T record) {
+        try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             DatumWriter<T> writer = new SpecificDatumWriter<>(record.getSchema());
             BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
