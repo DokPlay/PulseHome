@@ -98,6 +98,7 @@ public class AnalyzerLifecycle implements SmartLifecycle {
 
     private void handleProcessorFailure(String processorName, Throwable exception) {
         log.error("{} failed and analyzer will shut down", processorName, exception);
+        running.set(false);
         closeContextIfActive();
     }
 

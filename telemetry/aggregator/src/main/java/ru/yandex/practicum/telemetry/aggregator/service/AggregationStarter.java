@@ -27,6 +27,7 @@ public class AggregationStarter {
     private final SnapshotPublisher snapshotPublisher;
     private final SnapshotStateRestorer snapshotStateRestorer;
     private final AtomicBoolean active = new AtomicBoolean(true);
+    private final AtomicBoolean consumerClosed = new AtomicBoolean(false);
 
     public AggregationStarter(Consumer<String, SensorEventAvro> consumer,
                               AggregatorKafkaProperties properties,
@@ -41,7 +42,9 @@ public class AggregationStarter {
     }
 
     public void start() {
-        try (Consumer<String, SensorEventAvro> managedConsumer = consumer) {
+        Consumer<String, SensorEventAvro> managedConsumer = consumer;
+        consumerClosed.set(false);
+        try {
             snapshotStateRestorer.restorePublishedSnapshots();
             managedConsumer.subscribe(List.of(properties.getTopics().getSensors()));
 
@@ -64,6 +67,7 @@ public class AggregationStarter {
             log.error("Error while aggregating sensor events", exception);
             throw new IllegalStateException("Fatal error while aggregating sensor events", exception);
         } finally {
+            closeConsumer(managedConsumer);
             try {
                 snapshotPublisher.flush();
             } catch (Exception exception) {
@@ -77,7 +81,14 @@ public class AggregationStarter {
 
     public void stop() {
         active.set(false);
-        consumer.wakeup();
+        if (consumerClosed.get()) {
+            return;
+        }
+        try {
+            consumer.wakeup();
+        } catch (IllegalStateException exception) {
+            log.debug("Aggregation consumer was already closed during shutdown", exception);
+        }
     }
 
     private List<SnapshotPublisher.PendingSnapshotPublish> processRecords(ConsumerRecords<String, SensorEventAvro> records) {
@@ -91,5 +102,12 @@ public class AggregationStarter {
             updatedSnapshot.ifPresent(snapshot -> pendingPublishes.add(snapshotPublisher.publish(snapshot)));
         }
         return pendingPublishes;
+    }
+
+    private void closeConsumer(Consumer<String, SensorEventAvro> managedConsumer) {
+        if (consumerClosed.compareAndSet(false, true)) {
+            log.info("Closing aggregation consumer");
+            managedConsumer.close();
+        }
     }
 }
