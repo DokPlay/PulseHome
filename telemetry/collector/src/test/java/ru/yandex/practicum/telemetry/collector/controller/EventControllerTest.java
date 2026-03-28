@@ -54,22 +54,24 @@ class EventControllerTest {
         String nonNullPayload = Objects.requireNonNull(payload);
         String username = Objects.requireNonNull(collectorSecurityProperties.getUsername());
         String password = Objects.requireNonNull(collectorSecurityProperties.getPassword());
+        MediaType contentType = Objects.requireNonNull(JSON_MEDIA_TYPE);
         RequestPostProcessor basicAuth = Objects.requireNonNull(
                 SecurityMockMvcRequestPostProcessors.httpBasic(username, password)
         );
 
         return Objects.requireNonNull(mockMvc.perform(post(nonNullUrl)
                 .with(basicAuth)
-                .contentType(JSON_MEDIA_TYPE)
+                .contentType(contentType)
                 .content(nonNullPayload)));
     }
 
     private ResultActions performUnauthenticatedJsonPost(@NonNull String url, @NonNull String payload) throws Exception {
         String nonNullUrl = Objects.requireNonNull(url);
         String nonNullPayload = Objects.requireNonNull(payload);
+        MediaType contentType = Objects.requireNonNull(JSON_MEDIA_TYPE);
 
         return Objects.requireNonNull(mockMvc.perform(post(nonNullUrl)
-                .contentType(JSON_MEDIA_TYPE)
+                .contentType(contentType)
                 .content(nonNullPayload)));
     }
 
