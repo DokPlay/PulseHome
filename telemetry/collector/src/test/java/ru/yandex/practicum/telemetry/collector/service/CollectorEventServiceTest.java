@@ -27,10 +27,12 @@ import ru.yandex.practicum.telemetry.collector.mapper.SensorEventAvroMapper;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -67,7 +69,7 @@ class CollectorEventServiceTest {
         event.setMotion(true);
         event.setVoltage(220);
 
-        service.collectSensorEvent(event);
+        service.collectSensorEvent(event).join();
 
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
         verifySendCaptured(kafkaTemplate, payloadCaptor);
@@ -85,7 +87,7 @@ class CollectorEventServiceTest {
         event.setConditions(List.of(condition()));
         event.setActions(List.of(action()));
 
-        service.collectHubEvent(event);
+        service.collectHubEvent(event).join();
 
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
         verifySendCaptured(kafkaTemplate, payloadCaptor);
@@ -120,7 +122,10 @@ class CollectorEventServiceTest {
         event.setMotion(true);
         event.setVoltage(220);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("topic=telemetry.sensors.v1")
                 .hasMessageContaining("key=hub-9");
@@ -148,7 +153,10 @@ class CollectorEventServiceTest {
         event.setMotion(true);
         event.setVoltage(230);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("cause=TimeoutException");
     }
@@ -173,7 +181,10 @@ class CollectorEventServiceTest {
         event.setMotion(true);
         event.setVoltage(231);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("topic=telemetry.sensors.v1")
                 .hasMessageContaining("key=hub-11")
@@ -188,7 +199,7 @@ class CollectorEventServiceTest {
         event.setConditions(List.of(invalidCondition()));
         event.setActions(List.of(action()));
 
-        assertThatThrownBy(() -> service.collectHubEvent(event))
+        assertThatThrownBy(() -> service.collectHubEvent(event).join())
                 .isInstanceOf(InvalidScenarioConditionValueException.class)
                 .hasMessageContaining("0 or 1");
 

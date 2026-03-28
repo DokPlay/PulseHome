@@ -6,17 +6,21 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.service.CollectorEventService;
 import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -24,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EventControllerTest {
 
     private static final MediaType JSON_MEDIA_TYPE = Objects.requireNonNull(MediaType.APPLICATION_JSON);
+    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,6 +41,14 @@ class EventControllerTest {
         return mockMvc.perform(post(url)
                 .contentType(JSON_MEDIA_TYPE)
                 .content(payload));
+    }
+
+    @SuppressWarnings("null")
+    private ResultActions performAsyncJsonPost(String url, String payload) throws Exception {
+        MvcResult asyncResult = performJsonPost(url, payload)
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        return mockMvc.perform(asyncDispatch(asyncResult));
     }
 
     @Test
@@ -51,7 +64,9 @@ class EventControllerTest {
                 }
                 """;
 
-        performJsonPost("/events/sensors", payload)
+        when(collectorEventService.collectSensorEvent(any())).thenReturn(COMPLETED_FUTURE);
+
+        performAsyncJsonPost("/events/sensors", payload)
                 .andExpect(status().isOk());
 
         verify(collectorEventService).collectSensorEvent(any());
@@ -85,7 +100,9 @@ class EventControllerTest {
                 }
                 """;
 
-        performJsonPost("/events/hubs", payload)
+        when(collectorEventService.collectHubEvent(any())).thenReturn(COMPLETED_FUTURE);
+
+        performAsyncJsonPost("/events/hubs", payload)
                 .andExpect(status().isOk());
 
         verify(collectorEventService).collectHubEvent(any());
@@ -150,11 +167,14 @@ class EventControllerTest {
                 }
                 """;
 
-        doThrow(new EventPublishException("Failed to publish event to Kafka. topic=telemetry.sensors.v1, key=hub-2, cause=broker timeout", null))
-                .when(collectorEventService)
-                .collectSensorEvent(any());
+        when(collectorEventService.collectSensorEvent(any())).thenReturn(
+                CompletableFuture.failedFuture(new EventPublishException(
+                        "Failed to publish event to Kafka. topic=telemetry.sensors.v1, key=hub-2, cause=broker timeout",
+                        null
+                ))
+        );
 
-        performJsonPost("/events/sensors", payload)
+        performAsyncJsonPost("/events/sensors", payload)
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error").value("Failed to publish event to Kafka. topic=telemetry.sensors.v1, key=hub-2, cause=broker timeout"));
     }
@@ -184,11 +204,11 @@ class EventControllerTest {
                 }
                 """;
 
-        doThrow(new InvalidScenarioConditionValueException("Boolean-like condition value must be 0 or 1"))
-                .when(collectorEventService)
-                .collectHubEvent(any());
+        when(collectorEventService.collectHubEvent(any())).thenReturn(
+                CompletableFuture.failedFuture(new InvalidScenarioConditionValueException("Boolean-like condition value must be 0 or 1"))
+        );
 
-        performJsonPost("/events/hubs", payload)
+        performAsyncJsonPost("/events/hubs", payload)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Boolean-like condition value must be 0 or 1"));
     }
@@ -206,9 +226,11 @@ class EventControllerTest {
                 }
                 """;
 
-        doThrow(new RuntimeException("unexpected")).when(collectorEventService).collectSensorEvent(any());
+        when(collectorEventService.collectSensorEvent(any())).thenReturn(
+                CompletableFuture.failedFuture(new RuntimeException("unexpected"))
+        );
 
-        performJsonPost("/events/sensors", payload)
+        performAsyncJsonPost("/events/sensors", payload)
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Internal server error"));
     }

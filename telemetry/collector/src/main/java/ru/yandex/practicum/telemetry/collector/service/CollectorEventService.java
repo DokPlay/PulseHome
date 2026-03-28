@@ -14,7 +14,8 @@ import ru.yandex.practicum.telemetry.collector.mapper.SensorEventAvroMapper;
 import ru.yandex.practicum.telemetry.serialization.AvroBinarySerializer;
 
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 @Service
 public class CollectorEventService {
@@ -36,62 +37,67 @@ public class CollectorEventService {
         this.hubEventAvroMapper = hubEventAvroMapper;
     }
 
-    public void collectSensorEvent(SensorEvent event) {
+    public CompletableFuture<Void> collectSensorEvent(SensorEvent event) {
         SensorEventAvro avroEvent = sensorEventAvroMapper.toAvro(event);
         byte[] payload = AvroBinarySerializer.serialize(avroEvent);
         String topic = Objects.requireNonNull(properties.getTopics().getSensors(), "Sensor topic must not be null");
         String key = Objects.requireNonNull(event.getHubId(), "Sensor event hubId must not be null");
-        publish(topic, key, payload);
+        return publish(topic, key, payload);
     }
 
-    public void collectHubEvent(HubEvent event) {
+    public CompletableFuture<Void> collectHubEvent(HubEvent event) {
         HubEventAvro avroEvent = hubEventAvroMapper.toAvro(event);
         byte[] payload = AvroBinarySerializer.serialize(avroEvent);
         String topic = Objects.requireNonNull(properties.getTopics().getHubs(), "Hub topic must not be null");
         String key = Objects.requireNonNull(event.getHubId(), "Hub event hubId must not be null");
-        publish(topic, key, payload);
+        return publish(topic, key, payload);
     }
 
-    private void publish(String topic, String key, byte[] payload) {
+    private CompletableFuture<Void> publish(String topic, String key, byte[] payload) {
         String nonNullTopic = Objects.requireNonNull(topic, "Kafka topic must not be null");
         String nonNullKey = Objects.requireNonNull(key, "Kafka key must not be null");
         try {
-            // Collector confirms the HTTP request only after Kafka acknowledges the write.
-            // Producer-level max.block.ms and delivery.timeout.ms already bound the wait time,
-            // so we do not add a second client-side timeout that could race with Kafka delivery.
-            kafkaTemplate.send(nonNullTopic, nonNullKey, payload)
-                    .get();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            log.warn("Kafka publish interrupted. topic={}, key={}, payloadBytes={}",
-                    nonNullTopic, nonNullKey, payload.length, exception);
-            throw new EventPublishException(
-                    buildFailureMessage("Kafka publish interrupted", nonNullTopic, nonNullKey, exception),
-                    exception
-            );
-        } catch (ExecutionException exception) {
-            log.error("Kafka publish failed. topic={}, key={}, payloadBytes={}",
-                    nonNullTopic, nonNullKey, payload.length, exception);
-            throw new EventPublishException(
-                    buildFailureMessage("Failed to publish event to Kafka", nonNullTopic, nonNullKey, exception),
-                    exception
-            );
+            return kafkaTemplate.send(nonNullTopic, nonNullKey, payload)
+                    .handle((result, throwable) -> {
+                        if (throwable == null) {
+                            return null;
+                        }
+
+                        Throwable publishFailure = unwrapPublishFailure(throwable);
+                        log.error("Kafka publish failed. topic={}, key={}, payloadBytes={}",
+                                nonNullTopic, nonNullKey, payload.length, publishFailure);
+                        throw new EventPublishException(
+                                buildFailureMessage("Failed to publish event to Kafka", nonNullTopic, nonNullKey, publishFailure),
+                                publishFailure
+                        );
+                    });
         } catch (RuntimeException exception) {
             log.error("Kafka publish failed before acknowledgement wait. topic={}, key={}, payloadBytes={}",
                     nonNullTopic, nonNullKey, payload.length, exception);
-            throw new EventPublishException(
+            return CompletableFuture.failedFuture(new EventPublishException(
                     buildFailureMessage("Failed to publish event to Kafka", nonNullTopic, nonNullKey, exception),
                     exception
-            );
+            ));
         }
     }
 
-    private String buildFailureMessage(String prefix, String topic, String key, Exception exception) {
+    private Throwable unwrapPublishFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current instanceof CompletionException) {
+            if (current.getCause() == null) {
+                break;
+            }
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private String buildFailureMessage(String prefix, String topic, String key, Throwable exception) {
         String causeMessage = resolveCauseMessage(exception);
         return "%s. topic=%s, key=%s, cause=%s".formatted(prefix, topic, key, causeMessage);
     }
 
-    private String resolveCauseMessage(Exception exception) {
+    private String resolveCauseMessage(Throwable exception) {
         Throwable cause = exception.getCause();
         if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()) {
             return cause.getMessage();
