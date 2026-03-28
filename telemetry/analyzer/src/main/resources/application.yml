@@ -27,6 +27,7 @@ analyzer:
       hubs: telemetry.hubs.v1
       hubs-dlq: telemetry.hubs.dlq.v1
       snapshots: telemetry.snapshots.v1
+      snapshots-dlq: telemetry.snapshots.dlq.v1
     hubs-consumer:
       group-id: analyzer-hubs
       client-id-prefix: analyzer-hubs

@@ -28,6 +28,10 @@ public class AggregatorKafkaProperties {
     private Duration sendTimeout = Duration.ofSeconds(10);
 
     @NotNull
+    @DurationMin(seconds = 1)
+    private Duration snapshotRestoreTimeout = Duration.ofSeconds(30);
+
+    @NotNull
     @Valid
     private Consumer consumer = new Consumer();
 
@@ -61,6 +65,14 @@ public class AggregatorKafkaProperties {
 
     public void setSendTimeout(Duration sendTimeout) {
         this.sendTimeout = sendTimeout;
+    }
+
+    public Duration getSnapshotRestoreTimeout() {
+        return snapshotRestoreTimeout;
+    }
+
+    public void setSnapshotRestoreTimeout(Duration snapshotRestoreTimeout) {
+        this.snapshotRestoreTimeout = snapshotRestoreTimeout;
     }
 
     public Consumer getConsumer() {

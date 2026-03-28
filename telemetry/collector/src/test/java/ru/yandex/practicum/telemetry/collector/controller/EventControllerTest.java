@@ -224,7 +224,7 @@ class EventControllerTest {
 
         performAsyncJsonPost("/events/sensors", payload)
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.error").value("Failed to publish event to Kafka. topic=telemetry.sensors.v1, key=hub-2, cause=broker timeout"));
+                .andExpect(jsonPath("$.error").value("Telemetry ingestion is temporarily unavailable"));
     }
 
     @Test

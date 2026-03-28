@@ -42,9 +42,18 @@ public class KafkaConsumerConfig {
 
     @Bean(name = "hubEventDlqProducer", destroyMethod = "")
     public Producer<String, String> hubEventDlqProducer(AnalyzerKafkaProperties properties) {
+        return dlqProducer(properties, properties.getHubsConsumer().getClientIdPrefix());
+    }
+
+    @Bean(name = "snapshotDlqProducer", destroyMethod = "")
+    public Producer<String, String> snapshotDlqProducer(AnalyzerKafkaProperties properties) {
+        return dlqProducer(properties, properties.getSnapshotsConsumer().getClientIdPrefix());
+    }
+
+    private Producer<String, String> dlqProducer(AnalyzerKafkaProperties properties, String clientIdPrefix) {
         Map<String, Object> configuration = new HashMap<>();
         configuration.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
-        configuration.put(ProducerConfig.CLIENT_ID_CONFIG, properties.getHubsConsumer().getClientIdPrefix() + "-dlq-" + UUID.randomUUID());
+        configuration.put(ProducerConfig.CLIENT_ID_CONFIG, clientIdPrefix + "-dlq-" + UUID.randomUUID());
         configuration.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configuration.put(ProducerConfig.ACKS_CONFIG, "all");

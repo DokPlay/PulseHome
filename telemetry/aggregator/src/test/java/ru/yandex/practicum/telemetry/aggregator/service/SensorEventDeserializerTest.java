@@ -31,6 +31,7 @@ class SensorEventDeserializerTest {
 
             assertThat(deserialized.getId()).isEqualTo("sensor.motion.1");
             assertThat(deserialized.getHubId()).isEqualTo("hub-1");
+            assertThat(deserialized.getTimestamp()).isEqualTo(event.getTimestamp());
             assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
         }
     }
@@ -54,6 +55,7 @@ class SensorEventDeserializerTest {
 
             assertThat(deserialized.getId()).isEqualTo("sensor.motion.2");
             assertThat(deserialized.getHubId()).isEqualTo("hub-legacy");
+            assertThat(deserialized.getTimestamp()).isEqualTo(event.getTimestamp());
             assertThat(deserialized.getPayload()).isInstanceOf(MotionSensorAvro.class);
         }
     }
