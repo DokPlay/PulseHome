@@ -26,13 +26,34 @@ PulseHome создавался, чтобы отработать ключевые
 
 ```mermaid
 flowchart LR
-    A["События устройств и хаба"] --> B["Collector"]
-    B --> C["Kafka topics"]
-    C --> D["Aggregator"]
-    D --> E["Топик снапшотов"]
-    E --> F["Analyzer"]
-    F --> G["Hub Router gRPC"]
-    F --> H["PostgreSQL"]
+    subgraph Devices ["External World"]
+        A["Sensors & Hubs"]
+    end
+
+    subgraph Platform ["PulseHome (Java Services)"]
+        B["Collector"]
+        D["Aggregator"]
+        F["Analyzer"]
+    end
+
+    subgraph Infra ["Storage & Messaging"]
+        C{{"Kafka Topics"}}
+        H[("PostgreSQL")]
+    end
+
+    A -->|HTTP/JSON| B
+    B -->|Avro| C
+    C --> D
+    D -->|Snapshots| C
+    C --> F
+    F <--> H
+    F -->|gRPC| G["Hub Router"]
+    
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style C fill:#fff,stroke:#333,stroke-dasharray: 5 5
+
 ```
 
 ## Реализованные модули
