@@ -101,4 +101,43 @@ class SnapshotProcessorTest {
         verify(consumer).commitSync(Map.of(partition, new OffsetAndMetadata(1L)));
         verify(consumer, never()).commitSync(Map.of(partition, new OffsetAndMetadata(2L)));
     }
+
+    @Test
+    void shouldStopProcessingRemainingPartitionsAfterRetryableDispatchFailure() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, SensorsSnapshotAvro> consumer = mock(Consumer.class);
+        SnapshotAnalyzerService snapshotAnalyzerService = mock(SnapshotAnalyzerService.class);
+        AnalyzerKafkaProperties properties = new AnalyzerKafkaProperties();
+
+        SensorsSnapshotAvro failingSnapshot = SensorsSnapshotAvro.newBuilder()
+                .setHubId("hub-1")
+                .setVersion(1)
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setSensorsState(Map.of())
+                .build();
+        SensorsSnapshotAvro otherPartitionSnapshot = SensorsSnapshotAvro.newBuilder()
+                .setHubId("hub-2")
+                .setVersion(1)
+                .setTimestamp(Instant.parse("2024-08-06T15:11:25.157Z"))
+                .setSensorsState(Map.of())
+                .build();
+
+        TopicPartition firstPartition = new TopicPartition("telemetry.snapshots.v1", 0);
+        TopicPartition secondPartition = new TopicPartition("telemetry.snapshots.v1", 1);
+        ConsumerRecords<String, SensorsSnapshotAvro> records = new ConsumerRecords<>(Map.of(
+                firstPartition, List.of(new ConsumerRecord<>("telemetry.snapshots.v1", 0, 0L, "hub-1", failingSnapshot)),
+                secondPartition, List.of(new ConsumerRecord<>("telemetry.snapshots.v1", 1, 0L, "hub-2", otherPartitionSnapshot))
+        ));
+
+        when(consumer.poll(properties.getSnapshotsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
+        org.mockito.Mockito.doThrow(new RetryableActionDispatchException("retryable", new RuntimeException()))
+                .when(snapshotAnalyzerService).analyze(failingSnapshot);
+
+        SnapshotProcessor processor = new SnapshotProcessor(consumer, properties, snapshotAnalyzerService);
+        processor.start();
+
+        verify(snapshotAnalyzerService).analyze(failingSnapshot);
+        verify(snapshotAnalyzerService, never()).analyze(otherPartitionSnapshot);
+        verify(consumer, never()).commitSync(Map.of(secondPartition, new OffsetAndMetadata(1L)));
+    }
 }
