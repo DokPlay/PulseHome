@@ -22,7 +22,7 @@ import java.util.UUID;
 @Configuration
 public class KafkaConsumerConfig {
 
-    @Bean(name = "hubEventConsumer")
+    @Bean(name = "hubEventConsumer", destroyMethod = "")
     public Consumer<String, HubEventAvro> hubEventConsumer(AnalyzerKafkaProperties properties) {
         return new KafkaConsumer<>(
                 baseConfiguration(properties, properties.getHubsConsumer()),
@@ -31,7 +31,7 @@ public class KafkaConsumerConfig {
         );
     }
 
-    @Bean(name = "snapshotConsumer")
+    @Bean(name = "snapshotConsumer", destroyMethod = "")
     public Consumer<String, SensorsSnapshotAvro> snapshotConsumer(AnalyzerKafkaProperties properties) {
         return new KafkaConsumer<>(
                 baseConfiguration(properties, properties.getSnapshotsConsumer()),
@@ -40,7 +40,7 @@ public class KafkaConsumerConfig {
         );
     }
 
-    @Bean(name = "hubEventDlqProducer")
+    @Bean(name = "hubEventDlqProducer", destroyMethod = "")
     public Producer<String, String> hubEventDlqProducer(AnalyzerKafkaProperties properties) {
         Map<String, Object> configuration = new HashMap<>();
         configuration.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());

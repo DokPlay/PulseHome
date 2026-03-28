@@ -44,6 +44,10 @@ public class SnapshotAggregationService {
     }
 
     public synchronized Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
+        if (event.getTimestamp() == null) {
+            log.warn("Received sensor event without timestamp. hubId={}, sensorId={}",
+                    event.getHubId(), event.getId());
+        }
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
         SensorsSnapshotAvro snapshot = snapshots.computeIfAbsent(event.getHubId(),
                 hubId -> createInitialSnapshot(hubId, eventTimestamp));

@@ -23,7 +23,7 @@ import java.util.UUID;
 @Configuration
 public class KafkaClientConfig {
 
-    @Bean
+    @Bean(destroyMethod = "")
     public Consumer<String, SensorEventAvro> sensorEventConsumer(AggregatorKafkaProperties properties) {
         AggregatorKafkaProperties.Consumer consumer = properties.getConsumer();
 
@@ -39,7 +39,7 @@ public class KafkaClientConfig {
         return new KafkaConsumer<>(configuration);
     }
 
-    @Bean
+    @Bean(destroyMethod = "")
     public Consumer<String, SensorsSnapshotAvro> snapshotStateConsumer(AggregatorKafkaProperties properties) {
         AggregatorKafkaProperties.Consumer consumer = properties.getConsumer();
 
@@ -54,7 +54,7 @@ public class KafkaClientConfig {
         return new KafkaConsumer<>(configuration);
     }
 
-    @Bean
+    @Bean(destroyMethod = "")
     public Producer<String, byte[]> snapshotProducer(AggregatorKafkaProperties properties) {
         int sendTimeoutMs = Math.toIntExact(properties.getSendTimeout().toMillis());
         AggregatorKafkaProperties.Producer producer = properties.getProducer();

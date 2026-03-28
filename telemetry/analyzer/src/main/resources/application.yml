@@ -47,4 +47,4 @@ grpc:
       address: static://localhost:59090
       enableKeepAlive: true
       keepAliveWithoutCalls: true
-      negotiationType: plaintext
+      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:plaintext}
