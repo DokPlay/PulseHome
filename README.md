@@ -4,7 +4,7 @@
 
 PulseHome is an open-source Smart Home telemetry platform built as a production-style Java 25 event pipeline. It receives device and hub events over HTTP, streams them through Kafka using Avro contracts, builds hub-level snapshots, evaluates automation scenarios, and dispatches device actions over gRPC.
 
-The repository is useful both as a learning project and as a reference implementation for resilient backend design around Spring Boot, Kafka, Avro, PostgreSQL, Flyway, and gRPC.
+The repository is designed as a professional reference implementation for resilient backend design around Spring Boot, Kafka, Avro, PostgreSQL, Flyway, and gRPC.
 
 ## What PulseHome does
 
@@ -262,7 +262,7 @@ mvn clean verify -DskipITs
 
 ## Engineering focus
 
-PulseHome is intentionally more structured than a minimal demo. The main engineering priorities are:
+PulseHome is built as a production-minded engineering project. The main priorities are:
 
 - explicit schema contracts;
 - stable Java 25 runtime behavior;
