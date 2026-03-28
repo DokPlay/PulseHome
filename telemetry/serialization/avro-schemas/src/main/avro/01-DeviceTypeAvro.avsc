@@ -8,5 +8,6 @@
     "LIGHT_SENSOR",
     "CLIMATE_SENSOR",
     "SWITCH_SENSOR"
-  ]
+  ],
+  "default": "MOTION_SENSOR"
 }

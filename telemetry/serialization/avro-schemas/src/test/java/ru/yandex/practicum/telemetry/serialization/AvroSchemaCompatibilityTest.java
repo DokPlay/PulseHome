@@ -1,9 +1,13 @@
 package ru.yandex.practicum.telemetry.serialization;
 
 import org.junit.jupiter.api.Test;
+import org.apache.avro.Schema;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,9 +42,22 @@ class AvroSchemaCompatibilityTest {
         );
     }
 
+    @Test
+    void shouldKeepEnumDefaultsDefinedForForwardCompatibility() throws IOException {
+        assertEquals("MOTION_SENSOR", enumDefault("src/main/avro/01-DeviceTypeAvro.avsc"));
+        assertEquals("MOTION", enumDefault("src/main/avro/02-ConditionTypeAvro.avsc"));
+        assertEquals("EQUALS", enumDefault("src/main/avro/03-ConditionOperationAvro.avsc"));
+        assertEquals("ACTIVATE", enumDefault("src/main/avro/04-ActionTypeAvro.avsc"));
+    }
+
     private List<String> payloadBranchNames(org.apache.avro.Schema schema, String fieldName) {
         return schema.getField(fieldName).schema().getTypes().stream()
                 .map(org.apache.avro.Schema::getName)
                 .toList();
+    }
+
+    private String enumDefault(String path) throws IOException {
+        Schema schema = new Schema.Parser().parse(Files.readString(Path.of(path)));
+        return schema.getEnumDefault();
     }
 }

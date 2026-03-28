@@ -6,5 +6,6 @@
     "EQUALS",
     "GREATER_THAN",
     "LOWER_THAN"
-  ]
+  ],
+  "default": "EQUALS"
 }

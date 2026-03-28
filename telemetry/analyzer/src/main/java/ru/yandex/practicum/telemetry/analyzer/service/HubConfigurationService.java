@@ -157,7 +157,7 @@ public class HubConfigurationService {
             Sensor sensor = upsertSensor(actionEvent.getSensorId(), hubId);
             Action action = actionRepository.save(new Action(
                     ContractEnumMapper.toActionType(actionEvent.getType()),
-                    actionEvent.getValue() == null ? null : actionEvent.getValue()
+                    actionEvent.getValue()
             ));
             ScenarioActionLink link = new ScenarioActionLink(
                     new ScenarioActionId(scenario.getId(), sensor.getId(), action.getId()),

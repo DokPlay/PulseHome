@@ -27,8 +27,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest(properties = {
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.locations=classpath:db/test-migration",
+        "spring.jpa.hibernate.ddl-auto=validate",
         "spring.datasource.url=jdbc:h2:mem:analyzer-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE"
 })
 @Import(HubConfigurationService.class)
