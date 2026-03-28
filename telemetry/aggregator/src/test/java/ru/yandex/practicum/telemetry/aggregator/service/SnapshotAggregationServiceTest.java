@@ -108,8 +108,9 @@ class SnapshotAggregationServiceTest {
                 lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:27.157Z"), 63)
         ).orElseThrow();
 
-        assertThat(recreatedSnapshot.getVersion()).isEqualTo(1);
+        assertThat(recreatedSnapshot.getVersion()).isEqualTo(2);
         assertThat(recreatedSnapshot.getTimestamp()).isEqualTo(Instant.parse("2024-08-06T15:11:27.157Z"));
+        assertThat(recreatedSnapshot.getSensorsState()).hasSize(1);
     }
 
     private SensorEventAvro motionEvent(String hubId, String sensorId, Instant timestamp, boolean motion) {

@@ -1,5 +1,7 @@
 package ru.yandex.practicum.telemetry.aggregator.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
@@ -16,21 +18,24 @@ import java.util.Optional;
 public class SnapshotAggregationService {
 
     private static final int DEFAULT_MAX_TRACKED_HUBS = 10_000;
+    private static final Logger log = LoggerFactory.getLogger(SnapshotAggregationService.class);
 
     private final Map<String, SensorsSnapshotAvro> snapshots;
+    private final Map<String, EvictedSnapshotMetadata> evictedSnapshots;
 
     public SnapshotAggregationService() {
         this(DEFAULT_MAX_TRACKED_HUBS);
     }
 
     SnapshotAggregationService(int maxTrackedHubs) {
+        this.evictedSnapshots = createEvictedSnapshotCache(maxTrackedHubs);
         this.snapshots = createSnapshotCache(maxTrackedHubs);
     }
 
     public synchronized Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
         SensorsSnapshotAvro snapshot = snapshots.computeIfAbsent(event.getHubId(),
-                hubId -> createEmptySnapshot(hubId, eventTimestamp));
+                hubId -> createInitialSnapshot(hubId, eventTimestamp));
 
         SensorStateAvro oldState = snapshot.getSensorsState().get(event.getId());
         if (oldState != null) {
@@ -61,6 +66,23 @@ public class SnapshotAggregationService {
         return Optional.of(updatedSnapshot);
     }
 
+    private SensorsSnapshotAvro createInitialSnapshot(String hubId, Instant timestamp) {
+        EvictedSnapshotMetadata evictedMetadata = evictedSnapshots.remove(hubId);
+        if (evictedMetadata == null) {
+            return createEmptySnapshot(hubId, timestamp);
+        }
+
+        Instant restoredTimestamp = maxTimestamp(evictedMetadata.timestamp(), timestamp);
+        log.warn("Rebuilding snapshot after hub state eviction. hubId={}, lastKnownVersion={}, lastKnownSensors={}, lastKnownTimestamp={}",
+                hubId, evictedMetadata.version(), evictedMetadata.sensorCount(), evictedMetadata.timestamp());
+        return SensorsSnapshotAvro.newBuilder()
+                .setHubId(hubId)
+                .setVersion(evictedMetadata.version())
+                .setTimestamp(restoredTimestamp)
+                .setSensorsState(new HashMap<>())
+                .build();
+    }
+
     private SensorsSnapshotAvro createEmptySnapshot(String hubId, Instant timestamp) {
         return SensorsSnapshotAvro.newBuilder()
                 .setHubId(hubId)
@@ -86,8 +108,32 @@ public class SnapshotAggregationService {
         return new LinkedHashMap<>(16, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<String, SensorsSnapshotAvro> eldestEntry) {
+                boolean shouldEvict = size() > maxTrackedHubs;
+                if (shouldEvict) {
+                    SensorsSnapshotAvro snapshot = eldestEntry.getValue();
+                    evictedSnapshots.put(eldestEntry.getKey(), new EvictedSnapshotMetadata(
+                            snapshot.getVersion(),
+                            snapshot.getTimestamp(),
+                            snapshot.getSensorsState().size()
+                    ));
+                    log.warn("Evicting hub snapshot from LRU cache. hubId={}, version={}, sensorCount={}, timestamp={}, maxTrackedHubs={}",
+                            eldestEntry.getKey(), snapshot.getVersion(), snapshot.getSensorsState().size(),
+                            snapshot.getTimestamp(), maxTrackedHubs);
+                }
+                return shouldEvict;
+            }
+        };
+    }
+
+    private Map<String, EvictedSnapshotMetadata> createEvictedSnapshotCache(int maxTrackedHubs) {
+        return new LinkedHashMap<>(16, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, EvictedSnapshotMetadata> eldestEntry) {
                 return size() > maxTrackedHubs;
             }
         };
+    }
+
+    private record EvictedSnapshotMetadata(long version, Instant timestamp, int sensorCount) {
     }
 }
