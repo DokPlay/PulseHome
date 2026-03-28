@@ -28,6 +28,4 @@ public interface ScenarioConditionRepository extends JpaRepository<ScenarioCondi
     List<ScenarioConditionLink> findDetailedBySensorId(@Param("sensorId") String sensorId);
 
     void deleteByScenario_Id(Long scenarioId);
-
-    void deleteBySensor_Id(String sensorId);
 }

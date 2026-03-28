@@ -122,6 +122,9 @@ public class AnalyzerKafkaProperties {
         @Min(1)
         private int maxPollRecords = 100;
 
+        @Min(1)
+        private int maxPollIntervalMs = (int) Duration.ofMinutes(5).toMillis();
+
         @NotBlank
         private String autoOffsetReset = "earliest";
 
@@ -162,6 +165,14 @@ public class AnalyzerKafkaProperties {
 
         public void setMaxPollRecords(int maxPollRecords) {
             this.maxPollRecords = maxPollRecords;
+        }
+
+        public int getMaxPollIntervalMs() {
+            return maxPollIntervalMs;
+        }
+
+        public void setMaxPollIntervalMs(int maxPollIntervalMs) {
+            this.maxPollIntervalMs = maxPollIntervalMs;
         }
 
         public String getAutoOffsetReset() {

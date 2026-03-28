@@ -70,6 +70,7 @@ public class KafkaConsumerConfig {
         configuration.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, consumerSettings.getAutoOffsetReset());
         configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumerSettings.getMaxPollRecords());
+        configuration.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, consumerSettings.getMaxPollIntervalMs());
         return configuration;
     }
 }

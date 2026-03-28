@@ -28,6 +28,4 @@ public interface ScenarioActionRepository extends JpaRepository<ScenarioActionLi
     List<ScenarioActionLink> findDetailedBySensorId(@Param("sensorId") String sensorId);
 
     void deleteByScenario_Id(Long scenarioId);
-
-    void deleteBySensor_Id(String sensorId);
 }
