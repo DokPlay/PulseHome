@@ -17,9 +17,11 @@ import java.util.Map;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HubEventProcessorTest {
 
@@ -28,6 +30,7 @@ class HubEventProcessorTest {
         @SuppressWarnings("unchecked")
         Consumer<String, HubEventAvro> consumer = mock(Consumer.class);
         HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        HubEventDeadLetterPublisher deadLetterPublisher = mock(HubEventDeadLetterPublisher.class);
         AnalyzerKafkaProperties properties = new AnalyzerKafkaProperties();
 
         HubEventAvro event = HubEventAvro.newBuilder()
@@ -46,11 +49,12 @@ class HubEventProcessorTest {
 
         when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
 
-        HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService);
+        HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService, deadLetterPublisher);
         processor.run();
 
         verify(consumer).subscribe(List.of("telemetry.hubs.v1"));
         verify(hubConfigurationService).handleHubEvent(event);
+        verify(deadLetterPublisher, never()).publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         verify(consumer, times(1)).commitSync(Map.of(partition, new OffsetAndMetadata(1L)));
         verify(consumer).close();
     }
@@ -60,6 +64,7 @@ class HubEventProcessorTest {
         @SuppressWarnings("unchecked")
         Consumer<String, HubEventAvro> consumer = mock(Consumer.class);
         HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        HubEventDeadLetterPublisher deadLetterPublisher = mock(HubEventDeadLetterPublisher.class);
         AnalyzerKafkaProperties properties = new AnalyzerKafkaProperties();
 
         HubEventAvro brokenEvent = HubEventAvro.newBuilder()
@@ -93,12 +98,60 @@ class HubEventProcessorTest {
                 .handleHubEvent(brokenEvent);
         when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
 
-        HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService);
+        HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService, deadLetterPublisher);
         processor.run();
 
         verify(hubConfigurationService).handleHubEvent(brokenEvent);
         verify(hubConfigurationService).handleHubEvent(healthyEvent);
+        verify(deadLetterPublisher).publish(
+                org.mockito.ArgumentMatchers.argThat(record -> record.offset() == 0L && brokenEvent.equals(record.value())),
+                org.mockito.ArgumentMatchers.any(IllegalStateException.class)
+        );
         verify(consumer, times(1)).commitSync(Map.of(partition, new OffsetAndMetadata(2L)));
+        verify(consumer).close();
+    }
+
+    @Test
+    void shouldStopProcessorWhenDlqPublishFails() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, HubEventAvro> consumer = mock(Consumer.class);
+        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        HubEventDeadLetterPublisher deadLetterPublisher = mock(HubEventDeadLetterPublisher.class);
+        AnalyzerKafkaProperties properties = new AnalyzerKafkaProperties();
+
+        HubEventAvro brokenEvent = HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(DeviceAddedEventAvro.newBuilder()
+                        .setId("sensor.broken")
+                        .setType(ru.yandex.practicum.kafka.telemetry.event.DeviceTypeAvro.LIGHT_SENSOR)
+                        .build())
+                .build();
+
+        TopicPartition partition = new TopicPartition("telemetry.hubs.v1", 0);
+        ConsumerRecords<String, HubEventAvro> records = new ConsumerRecords<>(Map.of(
+                partition, List.of(new ConsumerRecord<>("telemetry.hubs.v1", 0, 0L, "hub-1", brokenEvent))
+        ));
+
+        doThrow(new IllegalStateException("poison pill"))
+                .when(hubConfigurationService)
+                .handleHubEvent(brokenEvent);
+        doThrow(new HubEventDeadLetterPublishException("DLQ unavailable", new IllegalStateException("broker unavailable")))
+                .when(deadLetterPublisher)
+                .publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records);
+
+        HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService, deadLetterPublisher);
+
+        assertThatThrownBy(processor::run)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Hub event processor stopped after a fatal error");
+
+        verify(deadLetterPublisher).publish(
+                org.mockito.ArgumentMatchers.argThat(record -> record.offset() == 0L && brokenEvent.equals(record.value())),
+                org.mockito.ArgumentMatchers.any(IllegalStateException.class)
+        );
+        verify(consumer, never()).commitSync(org.mockito.ArgumentMatchers.anyMap());
         verify(consumer).close();
     }
 }

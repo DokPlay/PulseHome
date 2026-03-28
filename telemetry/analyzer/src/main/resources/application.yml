@@ -23,6 +23,7 @@ analyzer:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     topics:
       hubs: telemetry.hubs.v1
+      hubs-dlq: telemetry.hubs.dlq.v1
       snapshots: telemetry.snapshots.v1
     hubs-consumer:
       group-id: analyzer-hubs

@@ -26,14 +26,17 @@ public class HubEventProcessor implements Runnable {
     private final Consumer<String, HubEventAvro> consumer;
     private final AnalyzerKafkaProperties properties;
     private final HubConfigurationService hubConfigurationService;
+    private final HubEventDeadLetterPublisher deadLetterPublisher;
     private final AtomicBoolean active = new AtomicBoolean(true);
 
     public HubEventProcessor(@Qualifier("hubEventConsumer") Consumer<String, HubEventAvro> consumer,
                              AnalyzerKafkaProperties properties,
-                             HubConfigurationService hubConfigurationService) {
+                             HubConfigurationService hubConfigurationService,
+                             HubEventDeadLetterPublisher deadLetterPublisher) {
         this.consumer = consumer;
         this.properties = properties;
         this.hubConfigurationService = hubConfigurationService;
+        this.deadLetterPublisher = deadLetterPublisher;
     }
 
     @Override
@@ -80,6 +83,7 @@ public class HubEventProcessor implements Runnable {
                     } catch (Exception exception) {
                         log.error("Skipping hub event after processing failure. topic={}, partition={}, offset={}, key={}",
                                 record.topic(), record.partition(), record.offset(), record.key(), exception);
+                        deadLetterPublisher.publish(record, exception);
                     }
                     trackRecord(processedOffsets, record);
                 }

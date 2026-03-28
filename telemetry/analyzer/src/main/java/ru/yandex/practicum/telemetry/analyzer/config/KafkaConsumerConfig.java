@@ -3,7 +3,11 @@ package ru.yandex.practicum.telemetry.analyzer.config;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
@@ -34,6 +38,17 @@ public class KafkaConsumerConfig {
                 new StringDeserializer(),
                 new SensorsSnapshotDeserializer()
         );
+    }
+
+    @Bean(name = "hubEventDlqProducer")
+    public Producer<String, String> hubEventDlqProducer(AnalyzerKafkaProperties properties) {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        configuration.put(ProducerConfig.CLIENT_ID_CONFIG, properties.getHubsConsumer().getClientIdPrefix() + "-dlq-" + UUID.randomUUID());
+        configuration.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configuration.put(ProducerConfig.ACKS_CONFIG, "all");
+        return new KafkaProducer<>(configuration);
     }
 
     private Map<String, Object> baseConfiguration(AnalyzerKafkaProperties properties,
