@@ -69,7 +69,17 @@ public class SnapshotProcessor {
         boolean shouldStopBatch = false;
 
         try {
-            for (TopicPartition partition : records.partitions()) {
+            List<TopicPartition> orderedPartitions = records.partitions().stream()
+                    .sorted((left, right) -> {
+                        int topicComparison = left.topic().compareTo(right.topic());
+                        if (topicComparison != 0) {
+                            return topicComparison;
+                        }
+                        return Integer.compare(left.partition(), right.partition());
+                    })
+                    .toList();
+
+            for (TopicPartition partition : orderedPartitions) {
                 for (ConsumerRecord<String, SensorsSnapshotAvro> record : records.records(partition)) {
                     if (record.value() == null) {
                         trackRecord(processedOffsets, record);

@@ -32,6 +32,17 @@ public class SnapshotAggregationService {
         this.snapshots = createSnapshotCache(maxTrackedHubs);
     }
 
+    public synchronized void restoreSnapshot(SensorsSnapshotAvro snapshot) {
+        SensorsSnapshotAvro restoredSnapshot = copySnapshot(snapshot);
+        SensorsSnapshotAvro currentSnapshot = snapshots.get(restoredSnapshot.getHubId());
+        if (currentSnapshot != null && isCurrentSnapshotNewerOrEqual(currentSnapshot, restoredSnapshot)) {
+            return;
+        }
+
+        snapshots.put(restoredSnapshot.getHubId(), restoredSnapshot);
+        evictedSnapshots.remove(restoredSnapshot.getHubId());
+    }
+
     public synchronized Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
         SensorsSnapshotAvro snapshot = snapshots.computeIfAbsent(event.getHubId(),
@@ -90,6 +101,21 @@ public class SnapshotAggregationService {
                 .setTimestamp(timestamp)
                 .setSensorsState(new HashMap<>())
                 .build();
+    }
+
+    private SensorsSnapshotAvro copySnapshot(SensorsSnapshotAvro snapshot) {
+        return SensorsSnapshotAvro.newBuilder(snapshot)
+                .setSensorsState(new HashMap<>(snapshot.getSensorsState()))
+                .build();
+    }
+
+    private boolean isCurrentSnapshotNewerOrEqual(SensorsSnapshotAvro currentSnapshot,
+                                                  SensorsSnapshotAvro candidateSnapshot) {
+        if (currentSnapshot.getVersion() > candidateSnapshot.getVersion()) {
+            return true;
+        }
+        return currentSnapshot.getVersion() == candidateSnapshot.getVersion()
+                && !currentSnapshot.getTimestamp().isBefore(candidateSnapshot.getTimestamp());
     }
 
     private Instant maxTimestamp(Instant currentTimestamp, Instant candidateTimestamp) {

@@ -25,20 +25,24 @@ public class AggregationStarter {
     private final AggregatorKafkaProperties properties;
     private final SnapshotAggregationService aggregationService;
     private final SnapshotPublisher snapshotPublisher;
+    private final SnapshotStateRestorer snapshotStateRestorer;
     private final AtomicBoolean active = new AtomicBoolean(true);
 
     public AggregationStarter(Consumer<String, SensorEventAvro> consumer,
                               AggregatorKafkaProperties properties,
                               SnapshotAggregationService aggregationService,
-                              SnapshotPublisher snapshotPublisher) {
+                              SnapshotPublisher snapshotPublisher,
+                              SnapshotStateRestorer snapshotStateRestorer) {
         this.consumer = consumer;
         this.properties = properties;
         this.aggregationService = aggregationService;
         this.snapshotPublisher = snapshotPublisher;
+        this.snapshotStateRestorer = snapshotStateRestorer;
     }
 
     public void start() {
         try (Consumer<String, SensorEventAvro> managedConsumer = consumer) {
+            snapshotStateRestorer.restorePublishedSnapshots();
             managedConsumer.subscribe(List.of(properties.getTopics().getSensors()));
 
             while (active.get()) {

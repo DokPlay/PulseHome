@@ -17,7 +17,8 @@
         "ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro",
         "ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro",
         "ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro",
-        "ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro"
+        "ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro",
+        "ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro"
       ]
     }
   ]

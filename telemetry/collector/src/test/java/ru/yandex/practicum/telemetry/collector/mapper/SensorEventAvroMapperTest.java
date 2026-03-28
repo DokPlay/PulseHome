@@ -6,7 +6,7 @@ import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
-import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.ClimateSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.LightSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
@@ -45,7 +45,7 @@ class SensorEventAvroMapperTest {
     }
 
     @Test
-    void shouldMapTemperatureSensorEventWithDuplicatedPayloadFields() {
+    void shouldMapTemperatureSensorEventWithoutDuplicatedEnvelopeFields() {
         TemperatureSensorEvent event = new TemperatureSensorEvent();
         event.setId("sensor.temperature.1");
         event.setHubId("hub-3");
@@ -56,17 +56,16 @@ class SensorEventAvroMapperTest {
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
-        assertThat(avroEvent.getPayload()).isInstanceOf(TemperatureSensorAvro.class);
-        TemperatureSensorAvro payload = (TemperatureSensorAvro) avroEvent.getPayload();
-        assertThat(payload.getId()).isEqualTo("sensor.temperature.1");
-        assertThat(payload.getHubId()).isEqualTo("hub-3");
+        assertThat(avroEvent.getId()).isEqualTo("sensor.temperature.1");
+        assertThat(avroEvent.getHubId()).isEqualTo("hub-3");
+        assertThat(avroEvent.getPayload()).isInstanceOf(TemperatureSensorPayloadAvro.class);
+        TemperatureSensorPayloadAvro payload = (TemperatureSensorPayloadAvro) avroEvent.getPayload();
         assertThat(payload.getTemperatureC()).isEqualTo(23);
         assertThat(payload.getTemperatureF()).isEqualTo(73);
-        assertThat(payload.getTimestamp()).isEqualTo(avroEvent.getTimestamp());
     }
 
     @Test
-    void shouldUseSameGeneratedTimestampForTemperatureEventWrapperAndPayload() {
+    void shouldKeepGeneratedTimestampOnlyInTemperatureEventWrapper() {
         TemperatureSensorEvent event = new TemperatureSensorEvent();
         event.setId("sensor.temperature.2");
         event.setHubId("hub-4");
@@ -76,9 +75,11 @@ class SensorEventAvroMapperTest {
 
         SensorEventAvro avroEvent = mapper.toAvro(event);
 
-        assertThat(avroEvent.getPayload()).isInstanceOf(TemperatureSensorAvro.class);
-        TemperatureSensorAvro payload = (TemperatureSensorAvro) avroEvent.getPayload();
-        assertThat(payload.getTimestamp()).isEqualTo(avroEvent.getTimestamp());
+        assertThat(avroEvent.getPayload()).isInstanceOf(TemperatureSensorPayloadAvro.class);
+        TemperatureSensorPayloadAvro payload = (TemperatureSensorPayloadAvro) avroEvent.getPayload();
+        assertThat(avroEvent.getTimestamp()).isNotNull();
+        assertThat(payload.getTemperatureC()).isEqualTo(20);
+        assertThat(payload.getTemperatureF()).isEqualTo(68);
     }
 
     @Test
