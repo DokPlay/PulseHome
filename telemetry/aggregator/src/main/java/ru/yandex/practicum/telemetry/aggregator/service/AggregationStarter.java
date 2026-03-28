@@ -3,6 +3,9 @@ package ru.yandex.practicum.telemetry.aggregator.service;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.RecordDeserializationException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +16,7 @@ import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -49,7 +53,13 @@ public class AggregationStarter {
             managedConsumer.subscribe(List.of(properties.getTopics().getSensors()));
 
             while (active.get()) {
-                ConsumerRecords<String, SensorEventAvro> records = managedConsumer.poll(properties.getPollTimeout());
+                ConsumerRecords<String, SensorEventAvro> records;
+                try {
+                    records = managedConsumer.poll(properties.getPollTimeout());
+                } catch (RecordDeserializationException exception) {
+                    skipPoisonedRecord(managedConsumer, exception);
+                    continue;
+                }
                 if (records.isEmpty()) {
                     continue;
                 }
@@ -89,6 +99,21 @@ public class AggregationStarter {
         } catch (IllegalStateException exception) {
             log.debug("Aggregation consumer was already closed during shutdown", exception);
         }
+    }
+
+    private void skipPoisonedRecord(Consumer<String, SensorEventAvro> managedConsumer,
+                                    RecordDeserializationException exception) {
+        TopicPartition topicPartition = exception.topicPartition();
+        long nextOffset = exception.offset() + 1;
+        log.error(
+                "Skipping poisoned sensor event after deserialization failure. topic={}, partition={}, offset={}",
+                topicPartition.topic(),
+                topicPartition.partition(),
+                exception.offset(),
+                exception
+        );
+        managedConsumer.seek(topicPartition, nextOffset);
+        managedConsumer.commitSync(Map.of(topicPartition, new OffsetAndMetadata(nextOffset)));
     }
 
     private List<SnapshotPublisher.PendingSnapshotPublish> processRecords(ConsumerRecords<String, SensorEventAvro> records) {
