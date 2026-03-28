@@ -17,6 +17,8 @@ collector:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     send-timeout: ${COLLECTOR_KAFKA_SEND_TIMEOUT:10s}
+    topic-bootstrap-enabled: ${COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
+    topic-bootstrap-timeout: ${COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
     producer:
       acks: all
       enable-idempotence: true
