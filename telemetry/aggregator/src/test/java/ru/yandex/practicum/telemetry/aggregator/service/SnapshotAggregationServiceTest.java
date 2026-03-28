@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 
 import java.time.Instant;
@@ -113,6 +114,32 @@ class SnapshotAggregationServiceTest {
         assertThat(recreatedSnapshot.getSensorsState()).hasSize(1);
     }
 
+    @Test
+    void shouldIgnoreReplayWhenRestoredSnapshotAlreadyContainsSensorState() {
+        Instant timestamp = Instant.parse("2024-08-06T15:11:24.157Z");
+        service.restoreSnapshot(snapshot("hub-1", 5L, "sensor.light.1", timestamp, 60));
+
+        Optional<SensorsSnapshotAvro> replayResult = service.updateState(
+                lightEvent("hub-1", "sensor.light.1", timestamp, 60)
+        );
+
+        assertThat(replayResult).isEmpty();
+    }
+
+    @Test
+    void shouldKeepNewestRestoredSnapshotForSameHub() {
+        Instant olderTimestamp = Instant.parse("2024-08-06T15:11:24.157Z");
+        Instant newerTimestamp = Instant.parse("2024-08-06T15:11:25.157Z");
+        service.restoreSnapshot(snapshot("hub-1", 7L, "sensor.light.1", newerTimestamp, 65));
+        service.restoreSnapshot(snapshot("hub-1", 6L, "sensor.light.1", olderTimestamp, 55));
+
+        Optional<SensorsSnapshotAvro> replayResult = service.updateState(
+                lightEvent("hub-1", "sensor.light.1", newerTimestamp, 65)
+        );
+
+        assertThat(replayResult).isEmpty();
+    }
+
     private SensorEventAvro motionEvent(String hubId, String sensorId, Instant timestamp, boolean motion) {
         return SensorEventAvro.newBuilder()
                 .setHubId(hubId)
@@ -135,6 +162,27 @@ class SnapshotAggregationServiceTest {
                         .setLinkQuality(80)
                         .setLuminosity(luminosity)
                         .build())
+                .build();
+    }
+
+    private SensorsSnapshotAvro snapshot(String hubId,
+                                         long version,
+                                         String sensorId,
+                                         Instant timestamp,
+                                         int luminosity) {
+        return SensorsSnapshotAvro.newBuilder()
+                .setHubId(hubId)
+                .setVersion(version)
+                .setTimestamp(timestamp)
+                .setSensorsState(java.util.Map.of(
+                        sensorId, SensorStateAvro.newBuilder()
+                                .setTimestamp(timestamp)
+                                .setData(LightSensorAvro.newBuilder()
+                                        .setLinkQuality(80)
+                                        .setLuminosity(luminosity)
+                                        .build())
+                                .build()
+                ))
                 .build();
     }
 }
