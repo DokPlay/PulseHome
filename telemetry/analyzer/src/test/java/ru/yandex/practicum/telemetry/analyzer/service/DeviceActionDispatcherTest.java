@@ -65,4 +65,23 @@ class DeviceActionDispatcherTest {
                 new ActionSpec("switch.1", ActionType.SET_VALUE, 23)
         )).isInstanceOf(RetryableActionDispatchException.class);
     }
+
+    @Test
+    void shouldTreatResourceExhaustedAsRetryableGrpcError() {
+        HubRouterControllerBlockingStub stub = mock(HubRouterControllerBlockingStub.class);
+        HubRouterControllerBlockingStub deadlineStub = mock(HubRouterControllerBlockingStub.class);
+        when(stub.withDeadlineAfter(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(java.util.concurrent.TimeUnit.MILLISECONDS)))
+                .thenReturn(deadlineStub);
+        when(deadlineStub.handleDeviceAction(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new StatusRuntimeException(Status.RESOURCE_EXHAUSTED));
+
+        DeviceActionDispatcher dispatcher = new DeviceActionDispatcher(stub, new AnalyzerGrpcProperties());
+
+        assertThatThrownBy(() -> dispatcher.dispatch(
+                "hub-1",
+                "warm-floor",
+                Instant.parse("2024-08-06T15:11:24.157Z"),
+                new ActionSpec("switch.1", ActionType.SET_VALUE, 23)
+        )).isInstanceOf(RetryableActionDispatchException.class);
+    }
 }

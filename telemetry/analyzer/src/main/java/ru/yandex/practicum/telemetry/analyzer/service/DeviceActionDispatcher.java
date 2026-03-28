@@ -61,7 +61,9 @@ public class DeviceActionDispatcher {
 
     private boolean isRetryable(StatusRuntimeException exception) {
         Status.Code code = exception.getStatus().getCode();
-        return code == Status.Code.UNAVAILABLE || code == Status.Code.DEADLINE_EXCEEDED;
+        return code == Status.Code.UNAVAILABLE
+                || code == Status.Code.DEADLINE_EXCEEDED
+                || code == Status.Code.RESOURCE_EXHAUSTED;
     }
 
     private Timestamp toTimestamp(Instant instant) {
