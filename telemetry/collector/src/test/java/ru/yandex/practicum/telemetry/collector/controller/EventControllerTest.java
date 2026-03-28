@@ -47,30 +47,27 @@ class EventControllerTest {
     @Autowired
     private CollectorSecurityProperties collectorSecurityProperties;
 
-    @SuppressWarnings("null")
     private ResultActions performJsonPost(String url, String payload) throws Exception {
-        return mockMvc.perform(post(url)
+        return Objects.requireNonNull(mockMvc.perform(post(url)
                 .with(SecurityMockMvcRequestPostProcessors.httpBasic(
                         collectorSecurityProperties.getUsername(),
                         collectorSecurityProperties.getPassword()
                 ))
                 .contentType(JSON_MEDIA_TYPE)
-                .content(payload));
+                .content(payload)));
     }
 
-    @SuppressWarnings("null")
     private ResultActions performUnauthenticatedJsonPost(String url, String payload) throws Exception {
-        return mockMvc.perform(post(url)
+        return Objects.requireNonNull(mockMvc.perform(post(url)
                 .contentType(JSON_MEDIA_TYPE)
-                .content(payload));
+                .content(payload)));
     }
 
-    @SuppressWarnings("null")
     private ResultActions performAsyncJsonPost(String url, String payload) throws Exception {
         MvcResult asyncResult = performJsonPost(url, payload)
                 .andExpect(request().asyncStarted())
                 .andReturn();
-        return mockMvc.perform(asyncDispatch(asyncResult));
+        return Objects.requireNonNull(mockMvc.perform(asyncDispatch(asyncResult)));
     }
 
     @Test

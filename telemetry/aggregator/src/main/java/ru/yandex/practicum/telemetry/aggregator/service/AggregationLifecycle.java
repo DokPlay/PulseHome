@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -57,7 +58,7 @@ public class AggregationLifecycle implements SmartLifecycle {
     }
 
     @Override
-    public void stop(Runnable callback) {
+    public void stop(@NonNull Runnable callback) {
         try {
             stop();
         } finally {
