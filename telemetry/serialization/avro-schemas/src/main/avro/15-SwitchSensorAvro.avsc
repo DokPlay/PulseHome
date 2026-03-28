@@ -3,6 +3,6 @@
   "name": "SwitchSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
   "fields": [
-    { "name": "state", "type": "boolean", "doc": "Switch state flag." }
+    { "name": "state", "type": "boolean", "doc": "Switch state flag.", "default": false }
   ]
 }

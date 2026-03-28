@@ -3,7 +3,7 @@
   "name": "LightSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
   "fields": [
-    { "name": "link_quality", "type": "int", "doc": "Link quality in percent." },
-    { "name": "luminosity", "type": "int", "doc": "Luminosity in lux." }
+    { "name": "link_quality", "type": "int", "doc": "Link quality in percent.", "default": 0 },
+    { "name": "luminosity", "type": "int", "doc": "Luminosity in lux.", "default": 0 }
   ]
 }
