@@ -20,6 +20,8 @@
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.version>3.5.13</spring-boot.version>
         <avro.version>1.12.1</avro.version>
         <protobuf.version>3.25.8</protobuf.version>
@@ -169,7 +171,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>-Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading</argLine>
+                        <argLine>-Xshare:off -Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading</argLine>
                     </configuration>
                 </plugin>
                 <plugin>

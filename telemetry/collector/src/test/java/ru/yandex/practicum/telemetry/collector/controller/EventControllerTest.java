@@ -3,6 +3,7 @@ package ru.yandex.practicum.telemetry.collector.controller;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -34,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "collector.security.username=test-user",
         "collector.security.password=test-pass"
 })
+@EnableConfigurationProperties(CollectorSecurityProperties.class)
 @Import(CollectorSecurityConfig.class)
 class EventControllerTest {
 

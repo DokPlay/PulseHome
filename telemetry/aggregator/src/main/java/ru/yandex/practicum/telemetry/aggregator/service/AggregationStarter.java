@@ -107,7 +107,9 @@ public class AggregationStarter {
     private void closeConsumer(Consumer<String, SensorEventAvro> managedConsumer) {
         if (consumerClosed.compareAndSet(false, true)) {
             log.info("Closing aggregation consumer");
-            managedConsumer.close();
+            try (managedConsumer) {
+                // Consumer is closed through try-with-resources to keep shutdown explicit and IDE-clean.
+            }
         }
     }
 }

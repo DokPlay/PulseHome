@@ -6,7 +6,6 @@ import org.springframework.context.ConfigurableApplicationContext;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doAnswer;

@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: hub-router-stub
+  main:
+    web-application-type: none
+    keep-alive: true
+
+hub-router-stub:
+  port: ${HUB_ROUTER_STUB_PORT:59090}

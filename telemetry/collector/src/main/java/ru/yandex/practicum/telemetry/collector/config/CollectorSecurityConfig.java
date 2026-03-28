@@ -1,6 +1,7 @@
 package ru.yandex.practicum.telemetry.collector.config;
 
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -15,6 +16,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(CollectorSecurityProperties.class)
 public class CollectorSecurityConfig {
 
     @Bean
