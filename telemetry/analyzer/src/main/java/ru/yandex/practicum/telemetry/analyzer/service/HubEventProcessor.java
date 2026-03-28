@@ -75,7 +75,12 @@ public class HubEventProcessor implements Runnable {
                         trackRecord(processedOffsets, record);
                         continue;
                     }
-                    hubConfigurationService.handleHubEvent(record.value());
+                    try {
+                        hubConfigurationService.handleHubEvent(record.value());
+                    } catch (Exception exception) {
+                        log.error("Skipping hub event after processing failure. topic={}, partition={}, offset={}, key={}",
+                                record.topic(), record.partition(), record.offset(), record.key(), exception);
+                    }
                     trackRecord(processedOffsets, record);
                 }
             }
