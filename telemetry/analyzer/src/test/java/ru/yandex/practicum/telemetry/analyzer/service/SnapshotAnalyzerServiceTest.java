@@ -9,6 +9,7 @@ import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
+import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionType;
@@ -208,6 +209,32 @@ class SnapshotAnalyzerServiceTest {
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
+    @Test
+    void shouldMatchTemperatureConditionForLegacyTemperaturePayload() {
+        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
+        ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
+        SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
+        SensorsSnapshotAvro snapshot = legacyTemperatureSnapshot();
+        ActionSpec action = new ActionSpec("switch.1", ActionType.ACTIVATE, 1);
+
+        when(hubConfigurationService.getScenarios("hub-1")).thenReturn(List.of(
+                new ScenarioDefinition(
+                        "hub-1",
+                        "warm-room",
+                        List.of(new ConditionSpec("sensor.temperature.1", ConditionType.TEMPERATURE, ConditionOperation.GREATER_THAN, 21)),
+                        List.of(action)
+                )
+        ));
+        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "warm-room", snapshot.getVersion(), action)).thenReturn(false);
+
+        service.analyze(snapshot);
+
+        verify(dispatcher).dispatch("hub-1", "warm-room", snapshot.getTimestamp(), action);
+        verify(actionDispatchTracker).markDispatched("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action);
+        verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
+    }
+
     private SensorsSnapshotAvro snapshot() {
         return SensorsSnapshotAvro.newBuilder()
                 .setHubId("hub-1")
@@ -242,6 +269,27 @@ class SnapshotAnalyzerServiceTest {
                         "sensor.temperature.1", SensorStateAvro.newBuilder()
                                 .setTimestamp(Instant.parse("2024-08-06T15:12:24.157Z"))
                                 .setData(TemperatureSensorPayloadAvro.newBuilder()
+                                        .setTemperatureC(23)
+                                        .setTemperatureF(73)
+                                        .build())
+                                .build()
+                ))
+                .build();
+    }
+
+    private SensorsSnapshotAvro legacyTemperatureSnapshot() {
+        Instant timestamp = Instant.parse("2024-08-06T15:12:24.157Z");
+        return SensorsSnapshotAvro.newBuilder()
+                .setHubId("hub-1")
+                .setVersion(10)
+                .setTimestamp(timestamp)
+                .setSensorsState(Map.of(
+                        "sensor.temperature.1", SensorStateAvro.newBuilder()
+                                .setTimestamp(timestamp)
+                                .setData(TemperatureSensorAvro.newBuilder()
+                                        .setId("sensor.temperature.1")
+                                        .setHubId("hub-1")
+                                        .setTimestamp(timestamp)
                                         .setTemperatureC(23)
                                         .setTemperatureF(73)
                                         .build())
