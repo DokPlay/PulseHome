@@ -1,0 +1,4 @@
+grpc:
+  client:
+    hub-router:
+      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:TLS}
