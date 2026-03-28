@@ -1,4 +1,6 @@
 collector:
+  kafka:
+    bootstrap-servers: localhost:9092
   security:
     username: collector
     password: collector

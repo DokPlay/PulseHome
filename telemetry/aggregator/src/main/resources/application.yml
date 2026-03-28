@@ -1,12 +1,14 @@
 spring:
   application:
     name: aggregator
+  profiles:
+    default: dev
   main:
     web-application-type: none
 
 aggregator:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     poll-timeout: ${AGGREGATOR_KAFKA_POLL_TIMEOUT:1s}
     send-timeout: ${AGGREGATOR_KAFKA_SEND_TIMEOUT:10s}
     consumer:

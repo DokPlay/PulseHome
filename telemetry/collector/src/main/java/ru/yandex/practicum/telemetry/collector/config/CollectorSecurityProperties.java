@@ -9,10 +9,10 @@ import org.springframework.validation.annotation.Validated;
 public class CollectorSecurityProperties {
 
     @NotBlank
-    private String username = "collector";
+    private String username;
 
     @NotBlank
-    private String password = "collector";
+    private String password;
 
     public String getUsername() {
         return username;

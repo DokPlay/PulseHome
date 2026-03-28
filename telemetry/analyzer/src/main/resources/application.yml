@@ -1,12 +1,14 @@
 spring:
   application:
     name: analyzer
+  profiles:
+    default: dev
   main:
     web-application-type: none
   datasource:
-    url: ${ANALYZER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/analyzer}
-    username: ${ANALYZER_DATASOURCE_USERNAME:postgres}
-    password: ${ANALYZER_DATASOURCE_PASSWORD:postgres}
+    url: ${ANALYZER_DATASOURCE_URL}
+    username: ${ANALYZER_DATASOURCE_USERNAME}
+    password: ${ANALYZER_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,7 +22,7 @@ spring:
 
 analyzer:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     topics:
       hubs: telemetry.hubs.v1
       hubs-dlq: telemetry.hubs.dlq.v1
@@ -44,7 +46,7 @@ analyzer:
 grpc:
   client:
     hub-router:
-      address: static://localhost:59090
+      address: ${GRPC_HUB_ROUTER_ADDRESS}
       enableKeepAlive: true
       keepAliveWithoutCalls: true
-      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:plaintext}
+      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE}
