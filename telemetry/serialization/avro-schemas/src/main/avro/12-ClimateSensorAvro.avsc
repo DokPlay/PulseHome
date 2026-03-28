@@ -3,8 +3,8 @@
   "name": "ClimateSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
   "fields": [
-    { "name": "temperature_c", "type": "int", "doc": "Temperature in degrees Celsius." },
-    { "name": "humidity", "type": "int", "doc": "Relative humidity in percent." },
-    { "name": "co2_level", "type": "int", "doc": "CO2 concentration in parts per million (ppm)." }
+    { "name": "temperature_c", "type": "int", "doc": "Temperature in degrees Celsius.", "default": 0 },
+    { "name": "humidity", "type": "int", "doc": "Relative humidity in percent.", "default": 0 },
+    { "name": "co2_level", "type": "int", "doc": "CO2 concentration in parts per million (ppm).", "default": 0 }
   ]
 }
