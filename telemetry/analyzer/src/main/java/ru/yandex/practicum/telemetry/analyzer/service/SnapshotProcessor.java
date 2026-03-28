@@ -66,6 +66,7 @@ public class SnapshotProcessor {
 
     private void process(ConsumerRecords<String, SensorsSnapshotAvro> records) {
         Map<TopicPartition, OffsetAndMetadata> processedOffsets = new HashMap<>();
+        boolean shouldStopBatch = false;
 
         try {
             for (TopicPartition partition : records.partitions()) {
@@ -83,8 +84,12 @@ public class SnapshotProcessor {
                         // after a partial action dispatch can duplicate non-idempotent scenario actions.
                         log.warn("Retryable snapshot action dispatch failure. topic={}, partition={}, offset={}",
                                 record.topic(), record.partition(), record.offset(), exception);
+                        shouldStopBatch = true;
                         break;
                     }
+                }
+                if (shouldStopBatch) {
+                    break;
                 }
             }
         } finally {
