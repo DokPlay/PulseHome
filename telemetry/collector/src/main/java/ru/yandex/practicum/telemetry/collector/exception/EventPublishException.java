@@ -1,4 +1,4 @@
-package ru.yandex.practicum.telemetry.collector.service;
+package ru.yandex.practicum.telemetry.collector.exception;
 
 public class EventPublishException extends RuntimeException {
 

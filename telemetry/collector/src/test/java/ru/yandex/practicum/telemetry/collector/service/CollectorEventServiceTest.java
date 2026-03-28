@@ -16,6 +16,7 @@ import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionType;
 import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAction;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioAddedEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioCondition;
+import ru.yandex.practicum.telemetry.collector.exception.EventPublishException;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.MotionSensorEvent;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.mapper.HubEventAvroMapper;

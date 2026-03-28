@@ -22,8 +22,6 @@ import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioAddedEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioCondition;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioRemovedEvent;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -32,7 +30,7 @@ public class HubEventAvroMapper {
     public HubEventAvro toAvro(HubEvent event) {
         return HubEventAvro.newBuilder()
                 .setHubId(event.getHubId())
-                .setTimestamp(normalizeTimestamp(event.getTimestamp()))
+                .setTimestamp(TimestampNormalizer.normalize(event.getTimestamp()))
                 .setPayload(mapPayload(event))
                 .build();
     }
@@ -108,8 +106,4 @@ public class HubEventAvroMapper {
                 .build();
     }
 
-    private Instant normalizeTimestamp(Instant timestamp) {
-        Instant actualTimestamp = timestamp == null ? Instant.now() : timestamp;
-        return actualTimestamp.truncatedTo(ChronoUnit.MILLIS);
-    }
 }
