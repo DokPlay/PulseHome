@@ -27,7 +27,7 @@ public class SnapshotAggregationService {
         this.snapshots = createSnapshotCache(maxTrackedHubs);
     }
 
-    public Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
+    public synchronized Optional<SensorsSnapshotAvro> updateState(SensorEventAvro event) {
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
         SensorsSnapshotAvro snapshot = snapshots.computeIfAbsent(event.getHubId(),
                 hubId -> createEmptySnapshot(hubId, eventTimestamp));
