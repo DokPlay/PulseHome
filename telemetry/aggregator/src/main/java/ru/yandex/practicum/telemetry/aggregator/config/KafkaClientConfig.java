@@ -12,10 +12,13 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.serialization.SensorEventDeserializer;
+import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Configuration
 public class KafkaClientConfig {
@@ -32,6 +35,21 @@ public class KafkaClientConfig {
         configuration.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SensorEventDeserializer.class);
         configuration.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, consumer.getAutoOffsetReset());
+        configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumer.getMaxPollRecords());
+        return new KafkaConsumer<>(configuration);
+    }
+
+    @Bean
+    public Consumer<String, SensorsSnapshotAvro> snapshotStateConsumer(AggregatorKafkaProperties properties) {
+        AggregatorKafkaProperties.Consumer consumer = properties.getConsumer();
+
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        configuration.put(ConsumerConfig.CLIENT_ID_CONFIG, consumer.getClientId() + "-snapshot-bootstrap-" + UUID.randomUUID());
+        configuration.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        configuration.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SensorsSnapshotDeserializer.class);
+        configuration.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumer.getMaxPollRecords());
         return new KafkaConsumer<>(configuration);
     }

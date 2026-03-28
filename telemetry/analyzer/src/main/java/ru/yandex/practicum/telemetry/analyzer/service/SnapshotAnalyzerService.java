@@ -11,6 +11,7 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro;
 import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
 import ru.yandex.practicum.telemetry.analyzer.model.ConditionOperation;
 import ru.yandex.practicum.telemetry.analyzer.model.ConditionSpec;
@@ -145,6 +146,9 @@ public class SnapshotAnalyzerService {
                 if (sensorData instanceof TemperatureSensorAvro temperatureSensor) {
                     yield OptionalInt.of(temperatureSensor.getTemperatureC());
                 }
+                if (sensorData instanceof TemperatureSensorPayloadAvro temperatureSensorPayload) {
+                    yield OptionalInt.of(temperatureSensorPayload.getTemperatureC());
+                }
                 if (sensorData instanceof ClimateSensorAvro climateSensor) {
                     yield OptionalInt.of(climateSensor.getTemperatureC());
                 }
@@ -164,8 +168,9 @@ public class SnapshotAnalyzerService {
             case MOTION -> MotionSensorAvro.class.getSimpleName();
             case LUMINOSITY -> LightSensorAvro.class.getSimpleName();
             case SWITCH -> SwitchSensorAvro.class.getSimpleName();
-            case TEMPERATURE -> "%s|%s".formatted(
+            case TEMPERATURE -> "%s|%s|%s".formatted(
                     TemperatureSensorAvro.class.getSimpleName(),
+                    TemperatureSensorPayloadAvro.class.getSimpleName(),
                     ClimateSensorAvro.class.getSimpleName()
             );
             case CO2LEVEL, HUMIDITY -> ClimateSensorAvro.class.getSimpleName();

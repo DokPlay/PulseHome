@@ -6,7 +6,7 @@ import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
-import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorPayloadAvro;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.ClimateSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.LightSensorEvent;
@@ -38,7 +38,7 @@ public class SensorEventAvroMapper {
             case LIGHT_SENSOR_EVENT -> mapLightPayload((LightSensorEvent) event);
             case MOTION_SENSOR_EVENT -> mapMotionPayload((MotionSensorEvent) event);
             case SWITCH_SENSOR_EVENT -> mapSwitchPayload((SwitchSensorEvent) event);
-            case TEMPERATURE_SENSOR_EVENT -> mapTemperaturePayload((TemperatureSensorEvent) event, normalizedTimestamp);
+            case TEMPERATURE_SENSOR_EVENT -> mapTemperaturePayload((TemperatureSensorEvent) event);
         };
     }
 
@@ -71,11 +71,8 @@ public class SensorEventAvroMapper {
                 .build();
     }
 
-    private TemperatureSensorAvro mapTemperaturePayload(TemperatureSensorEvent event, Instant normalizedTimestamp) {
-        return TemperatureSensorAvro.newBuilder()
-                .setId(event.getId())
-                .setHubId(event.getHubId())
-                .setTimestamp(normalizedTimestamp)
+    private TemperatureSensorPayloadAvro mapTemperaturePayload(TemperatureSensorEvent event) {
+        return TemperatureSensorPayloadAvro.newBuilder()
                 .setTemperatureC(event.getTemperatureC())
                 .setTemperatureF(event.getTemperatureF())
                 .build();

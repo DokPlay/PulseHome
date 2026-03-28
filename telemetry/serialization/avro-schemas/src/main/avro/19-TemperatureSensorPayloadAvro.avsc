@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "TemperatureSensorPayloadAvro",
+  "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "fields": [
+    { "name": "temperature_c", "type": "int" },
+    { "name": "temperature_f", "type": "int" }
+  ]
+}

@@ -34,6 +34,7 @@ class AggregationStarterTest {
         Consumer<String, SensorEventAvro> consumer = mock(Consumer.class);
         SnapshotAggregationService aggregationService = mock(SnapshotAggregationService.class);
         SnapshotPublisher publisher = mock(SnapshotPublisher.class);
+        SnapshotStateRestorer snapshotStateRestorer = mock(SnapshotStateRestorer.class);
 
         AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
         SensorEventAvro event = sensorEvent();
@@ -59,9 +60,16 @@ class AggregationStarterTest {
         );
         when(publisher.publish(snapshot)).thenReturn(pendingPublish);
 
-        AggregationStarter starter = new AggregationStarter(consumer, properties, aggregationService, publisher);
+        AggregationStarter starter = new AggregationStarter(
+                consumer,
+                properties,
+                aggregationService,
+                publisher,
+                snapshotStateRestorer
+        );
         starter.start();
 
+        verify(snapshotStateRestorer).restorePublishedSnapshots();
         verify(consumer).subscribe(List.of("telemetry.sensors.v1"));
         verify(aggregationService).updateState(event);
         verify(publisher).publish(snapshot);
@@ -70,7 +78,8 @@ class AggregationStarterTest {
         verify(consumer).commitSync();
         verify(consumer).close();
         verify(publisher).close();
-        InOrder inOrder = inOrder(publisher, consumer);
+        InOrder inOrder = inOrder(snapshotStateRestorer, publisher, consumer);
+        inOrder.verify(snapshotStateRestorer).restorePublishedSnapshots();
         inOrder.verify(publisher).flush();
         inOrder.verify(publisher).awaitPublications(List.of(pendingPublish));
         inOrder.verify(consumer).commitSync();
@@ -82,6 +91,7 @@ class AggregationStarterTest {
         Consumer<String, SensorEventAvro> consumer = mock(Consumer.class);
         SnapshotAggregationService aggregationService = mock(SnapshotAggregationService.class);
         SnapshotPublisher publisher = mock(SnapshotPublisher.class);
+        SnapshotStateRestorer snapshotStateRestorer = mock(SnapshotStateRestorer.class);
 
         AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
         SensorEventAvro event = sensorEvent();
@@ -93,13 +103,20 @@ class AggregationStarterTest {
         when(consumer.poll(properties.getPollTimeout())).thenReturn(records);
         when(aggregationService.updateState(event)).thenThrow(new IllegalArgumentException("broken"));
 
-        AggregationStarter starter = new AggregationStarter(consumer, properties, aggregationService, publisher);
+        AggregationStarter starter = new AggregationStarter(
+                consumer,
+                properties,
+                aggregationService,
+                publisher,
+                snapshotStateRestorer
+        );
 
         assertThatThrownBy(starter::start)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Fatal error while aggregating sensor events")
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
+        verify(snapshotStateRestorer).restorePublishedSnapshots();
         verify(consumer, never()).commitSync();
         verify(consumer).close();
         verify(publisher).close();
