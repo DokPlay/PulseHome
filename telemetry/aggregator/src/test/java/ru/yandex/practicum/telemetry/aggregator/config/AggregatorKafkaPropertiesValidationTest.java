@@ -14,7 +14,7 @@ class AggregatorKafkaPropertiesValidationTest {
 
     @Test
     void shouldRejectSendTimeoutThatDoesNotExceedLinger() {
-        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        AggregatorKafkaProperties properties = createProperties();
         properties.setSendTimeout(Duration.ofMillis(5));
         properties.getProducer().setLingerMs(5);
 
@@ -27,7 +27,7 @@ class AggregatorKafkaPropertiesValidationTest {
 
     @Test
     void shouldRejectTooManyInFlightRequestsWhenIdempotenceEnabled() {
-        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        AggregatorKafkaProperties properties = createProperties();
         properties.getProducer().setEnableIdempotence(true);
         properties.getProducer().setMaxInFlightRequestsPerConnection(6);
 
@@ -40,7 +40,7 @@ class AggregatorKafkaPropertiesValidationTest {
 
     @Test
     void shouldRejectUnsupportedAutoOffsetResetValue() {
-        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        AggregatorKafkaProperties properties = createProperties();
         properties.getConsumer().setAutoOffsetReset("random");
 
         Set<ConstraintViolation<AggregatorKafkaProperties>> violations = validate(properties);
@@ -55,5 +55,11 @@ class AggregatorKafkaPropertiesValidationTest {
             Validator validator = validatorFactory.getValidator();
             return validator.validate(properties);
         }
+    }
+
+    private AggregatorKafkaProperties createProperties() {
+        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        properties.setBootstrapServers("localhost:9092");
+        return properties;
     }
 }
