@@ -1,5 +1,9 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
@@ -16,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -95,6 +100,44 @@ class SnapshotAnalyzerServiceTest {
         verify(dispatcher, never()).dispatch("hub-1", "hall-light", snapshot.getTimestamp(),
                 new ActionSpec("switch.1", ActionType.ACTIVATE, 1));
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
+    }
+
+    @Test
+    void shouldWarnWhenScenarioConditionDoesNotMatchSensorPayloadType() {
+        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
+        ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
+        SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
+        SensorsSnapshotAvro snapshot = snapshot();
+        Logger logger = (Logger) org.slf4j.LoggerFactory.getLogger(SnapshotAnalyzerService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            when(hubConfigurationService.getScenarios("hub-1")).thenReturn(List.of(
+                    new ScenarioDefinition(
+                            "hub-1",
+                            "hall-light",
+                            List.of(new ConditionSpec("sensor.light.1", ConditionType.MOTION, ConditionOperation.EQUALS, 1)),
+                            List.of(new ActionSpec("switch.1", ActionType.ACTIVATE, 1))
+                    )
+            ));
+
+            service.analyze(snapshot);
+
+            verify(dispatcher, never()).dispatch("hub-1", "hall-light", snapshot.getTimestamp(),
+                    new ActionSpec("switch.1", ActionType.ACTIVATE, 1));
+            assertThat(appender.list)
+                    .anySatisfy(event -> {
+                        assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                        assertThat(event.getFormattedMessage()).contains("Scenario condition is incompatible with current sensor payload");
+                        assertThat(event.getFormattedMessage()).contains("conditionType=MOTION");
+                        assertThat(event.getFormattedMessage()).contains("payloadType=LightSensorAvro");
+                    });
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test
