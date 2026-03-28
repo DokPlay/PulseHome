@@ -1,0 +1,9 @@
+collector:
+  security:
+    username: collector
+    password: collector
+
+management:
+  endpoint:
+    health:
+      show-details: always

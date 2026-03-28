@@ -3,14 +3,18 @@ package ru.yandex.practicum.telemetry.collector.controller;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import ru.yandex.practicum.telemetry.collector.config.CollectorSecurityConfig;
+import ru.yandex.practicum.telemetry.collector.config.CollectorSecurityProperties;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
+import ru.yandex.practicum.telemetry.collector.exception.EventPublishException;
 import ru.yandex.practicum.telemetry.collector.service.CollectorEventService;
-import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -24,7 +28,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(EventController.class)
+@WebMvcTest(value = EventController.class, properties = {
+        "collector.security.username=test-user",
+        "collector.security.password=test-pass"
+})
+@Import(CollectorSecurityConfig.class)
 class EventControllerTest {
 
     private static final MediaType JSON_MEDIA_TYPE = Objects.requireNonNull(MediaType.APPLICATION_JSON);
@@ -36,8 +44,22 @@ class EventControllerTest {
     @MockitoBean
     private CollectorEventService collectorEventService;
 
+    @Autowired
+    private CollectorSecurityProperties collectorSecurityProperties;
+
     @SuppressWarnings("null")
     private ResultActions performJsonPost(String url, String payload) throws Exception {
+        return mockMvc.perform(post(url)
+                .with(SecurityMockMvcRequestPostProcessors.httpBasic(
+                        collectorSecurityProperties.getUsername(),
+                        collectorSecurityProperties.getPassword()
+                ))
+                .contentType(JSON_MEDIA_TYPE)
+                .content(payload));
+    }
+
+    @SuppressWarnings("null")
+    private ResultActions performUnauthenticatedJsonPost(String url, String payload) throws Exception {
         return mockMvc.perform(post(url)
                 .contentType(JSON_MEDIA_TYPE)
                 .content(payload));
@@ -152,6 +174,23 @@ class EventControllerTest {
         performJsonPost("/events/sensors", payload)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Invalid request body"));
+    }
+
+    @Test
+    void shouldRejectRequestsWithoutAuthentication() throws Exception {
+        String payload = """
+                {
+                  "id": "sensor.light.3",
+                  "hubId": "hub-2",
+                  "timestamp": "2024-08-06T16:54:03.129Z",
+                  "type": "LIGHT_SENSOR_EVENT",
+                  "linkQuality": 75,
+                  "luminosity": 59
+                }
+                """;
+
+        performUnauthenticatedJsonPost("/events/sensors", payload)
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

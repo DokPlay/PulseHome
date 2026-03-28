@@ -9,7 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.yandex.practicum.telemetry.collector.exception.ClientInputException;
-import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
+import ru.yandex.practicum.telemetry.collector.exception.EventPublishException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {

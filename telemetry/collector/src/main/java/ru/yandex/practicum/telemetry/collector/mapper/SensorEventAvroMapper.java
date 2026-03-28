@@ -16,22 +16,21 @@ import ru.yandex.practicum.telemetry.collector.dto.sensor.SwitchSensorEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.TemperatureSensorEvent;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Component
 public class SensorEventAvroMapper {
 
     public SensorEventAvro toAvro(SensorEvent event) {
-        Instant normalizedTimestamp = normalizeTimestamp(event.getTimestamp());
+        Instant normalizedTimestamp = TimestampNormalizer.normalize(event.getTimestamp());
         return SensorEventAvro.newBuilder()
                 .setId(event.getId())
                 .setHubId(event.getHubId())
                 .setTimestamp(normalizedTimestamp)
-                .setPayload(mapPayload(event, normalizedTimestamp))
+                .setPayload(mapPayload(event))
                 .build();
     }
 
-    private Object mapPayload(SensorEvent event, Instant normalizedTimestamp) {
+    private Object mapPayload(SensorEvent event) {
         SensorEventType eventType = event.getType();
         return switch (eventType) {
             case CLIMATE_SENSOR_EVENT -> mapClimatePayload((ClimateSensorEvent) event);
@@ -77,10 +76,4 @@ public class SensorEventAvroMapper {
                 .setTemperatureF(event.getTemperatureF())
                 .build();
     }
-
-    private Instant normalizeTimestamp(Instant timestamp) {
-        Instant actualTimestamp = timestamp == null ? Instant.now() : timestamp;
-        return actualTimestamp.truncatedTo(ChronoUnit.MILLIS);
-    }
-
 }
