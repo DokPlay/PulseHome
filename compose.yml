@@ -27,15 +27,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: analyzer
-      POSTGRES_USER: pulsehome
-      POSTGRES_PASSWORD: pulsehome
+      POSTGRES_DB: ${PULSEHOME_POSTGRES_DB:-analyzer}
+      POSTGRES_USER: ${PULSEHOME_POSTGRES_USER:?Set PULSEHOME_POSTGRES_USER in your environment or .env}
+      POSTGRES_PASSWORD: ${PULSEHOME_POSTGRES_PASSWORD:?Set PULSEHOME_POSTGRES_PASSWORD in your environment or .env}
     ports:
       - "5432:5432"
     volumes:
       - pulsehome-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pulsehome -d analyzer"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -63,8 +63,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      COLLECTOR_BASIC_AUTH_USERNAME: collector
-      COLLECTOR_BASIC_AUTH_PASSWORD: collector-secret
+      COLLECTOR_BASIC_AUTH_USERNAME: ${COLLECTOR_BASIC_AUTH_USERNAME:-collector}
+      COLLECTOR_BASIC_AUTH_PASSWORD: ${COLLECTOR_BASIC_AUTH_PASSWORD:?Set COLLECTOR_BASIC_AUTH_PASSWORD in your environment or .env}
       COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
     ports:
       - "8080:8080"
@@ -100,9 +100,9 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
-      ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analyzer
-      ANALYZER_DATASOURCE_USERNAME: pulsehome
-      ANALYZER_DATASOURCE_PASSWORD: pulsehome
+      ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PULSEHOME_POSTGRES_DB:-analyzer}
+      ANALYZER_DATASOURCE_USERNAME: ${PULSEHOME_POSTGRES_USER:?Set PULSEHOME_POSTGRES_USER in your environment or .env}
+      ANALYZER_DATASOURCE_PASSWORD: ${PULSEHOME_POSTGRES_PASSWORD:?Set PULSEHOME_POSTGRES_PASSWORD in your environment or .env}
       GRPC_HUB_ROUTER_ADDRESS: static://hub-router-stub:59090
       GRPC_HUB_ROUTER_NEGOTIATION_TYPE: plaintext
 

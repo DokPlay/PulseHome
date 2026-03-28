@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/analyzer
-    username: postgres
-    password: postgres
+    url: ${ANALYZER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/analyzer}
+    username: ${ANALYZER_DATASOURCE_USERNAME}
+    password: ${ANALYZER_DATASOURCE_PASSWORD}
 
 analyzer:
   kafka:
