@@ -160,6 +160,8 @@ What is already tuned for it:
 This is the fastest way to run the whole stack locally.
 
 ```bash
+cp .env.example .env
+# edit .env with your local secrets
 docker compose up --build -d
 ```
 
@@ -180,10 +182,8 @@ docker compose ps
 docker compose logs -f collector
 ```
 
-Local compose uses these sample Collector credentials:
-
-- username: `collector`
-- password: `collector-secret`
+`docker compose` reads secrets from environment variables or a local `.env` file.
+Tracked files only ship the [.env.example](./.env.example) template.
 
 To stop the stack:
 
@@ -229,12 +229,12 @@ Most important variables:
 SPRING_PROFILES_ACTIVE=dev
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 ANALYZER_DATASOURCE_URL=jdbc:postgresql://localhost:5432/analyzer
-ANALYZER_DATASOURCE_USERNAME=pulsehome
-ANALYZER_DATASOURCE_PASSWORD=pulsehome
+ANALYZER_DATASOURCE_USERNAME=your-db-user
+ANALYZER_DATASOURCE_PASSWORD=your-db-password
 GRPC_HUB_ROUTER_ADDRESS=static://localhost:59090
 GRPC_HUB_ROUTER_NEGOTIATION_TYPE=plaintext
 COLLECTOR_BASIC_AUTH_USERNAME=collector
-COLLECTOR_BASIC_AUTH_PASSWORD=collector-secret
+COLLECTOR_BASIC_AUTH_PASSWORD=your-collector-password
 ```
 
 ## Build and test

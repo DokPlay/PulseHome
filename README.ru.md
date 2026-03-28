@@ -160,6 +160,8 @@ PulseHome осознанно закреплён на Java 25.
 Это самый быстрый способ поднять весь стек локально.
 
 ```bash
+cp .env.example .env
+# заполните .env своими локальными секретами
 docker compose up --build -d
 ```
 
@@ -180,10 +182,8 @@ docker compose ps
 docker compose logs -f collector
 ```
 
-В локальном compose используются демонстрационные учётные данные Collector:
-
-- username: `collector`
-- password: `collector-secret`
+`docker compose` читает секреты из переменных окружения или локального файла `.env`.
+В репозитории хранится только шаблон [.env.example](./.env.example).
 
 Остановить стек:
 
@@ -229,12 +229,12 @@ mvn -pl telemetry/analyzer spring-boot:run
 SPRING_PROFILES_ACTIVE=dev
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 ANALYZER_DATASOURCE_URL=jdbc:postgresql://localhost:5432/analyzer
-ANALYZER_DATASOURCE_USERNAME=pulsehome
-ANALYZER_DATASOURCE_PASSWORD=pulsehome
+ANALYZER_DATASOURCE_USERNAME=ваш-пользователь-бд
+ANALYZER_DATASOURCE_PASSWORD=ваш-пароль-бд
 GRPC_HUB_ROUTER_ADDRESS=static://localhost:59090
 GRPC_HUB_ROUTER_NEGOTIATION_TYPE=plaintext
 COLLECTOR_BASIC_AUTH_USERNAME=collector
-COLLECTOR_BASIC_AUTH_PASSWORD=collector-secret
+COLLECTOR_BASIC_AUTH_PASSWORD=ваш-пароль-collector
 ```
 
 ## Сборка и тесты
