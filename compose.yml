@@ -1,0 +1,107 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    environment:
+      CLUSTER_ID: abcdefghijklmnopqrstuv
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: analyzer
+      POSTGRES_USER: pulsehome
+      POSTGRES_PASSWORD: pulsehome
+    ports:
+      - "5432:5432"
+    volumes:
+      - pulsehome-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsehome -d analyzer"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  hub-router-stub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: hub-router-stub
+    restart: unless-stopped
+    environment:
+      HUB_ROUTER_STUB_PORT: 59090
+    ports:
+      - "59090:59090"
+
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: collector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      COLLECTOR_BASIC_AUTH_USERNAME: collector
+      COLLECTOR_BASIC_AUTH_PASSWORD: collector-secret
+    ports:
+      - "8080:8080"
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: aggregator
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: analyzer
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      hub-router-stub:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analyzer
+      ANALYZER_DATASOURCE_USERNAME: pulsehome
+      ANALYZER_DATASOURCE_PASSWORD: pulsehome
+      GRPC_HUB_ROUTER_ADDRESS: static://hub-router-stub:59090
+      GRPC_HUB_ROUTER_NEGOTIATION_TYPE: plaintext
+
+volumes:
+  pulsehome-postgres-data:

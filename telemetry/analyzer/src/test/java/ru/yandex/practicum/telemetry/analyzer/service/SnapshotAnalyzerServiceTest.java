@@ -34,7 +34,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldPruneDispatchStateEvenWhenNoScenariosExist() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -53,7 +53,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldDispatchActionsWhenAllConditionsMatch() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -82,7 +82,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldSkipScenarioWhenConditionDoesNotMatch() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -106,7 +106,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldWarnWhenScenarioConditionDoesNotMatchSensorPayloadType() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -144,7 +144,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldNotRedispatchAlreadyRecordedActionsWhenSnapshotIsRetried() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -185,7 +185,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldMatchTemperatureConditionForNewTemperaturePayload() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -211,7 +211,7 @@ class SnapshotAnalyzerServiceTest {
 
     @Test
     void shouldMatchTemperatureConditionForLegacyTemperaturePayload() {
-        HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
+        var hubConfigurationService = mockHubConfigurationService();
         DeviceActionDispatcher dispatcher = mock(DeviceActionDispatcher.class);
         ActionDispatchTracker actionDispatchTracker = mock(ActionDispatchTracker.class);
         SnapshotAnalyzerService service = new SnapshotAnalyzerService(hubConfigurationService, dispatcher, actionDispatchTracker);
@@ -296,5 +296,9 @@ class SnapshotAnalyzerServiceTest {
                                 .build()
                 ))
                 .build();
+    }
+
+    private ru.yandex.practicum.telemetry.analyzer.service.HubConfigurationService mockHubConfigurationService() {
+        return mock(ru.yandex.practicum.telemetry.analyzer.service.HubConfigurationService.class);
     }
 }

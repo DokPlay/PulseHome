@@ -1,0 +1,9 @@
+.git
+.github
+.gemini
+.idea
+.vscode
+.worktrees
+**/.DS_Store
+**/node_modules
+**/target

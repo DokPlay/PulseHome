@@ -2,125 +2,140 @@
 
 [Read this in Russian](./README.ru.md)
 
-PulseHome is an open-source Smart Home telemetry platform built as a set of Java services around Kafka, Avro, Spring Boot, and gRPC.
+PulseHome is an open-source Smart Home telemetry platform built as a production-style Java 25 event pipeline. It receives device and hub events over HTTP, streams them through Kafka using Avro contracts, builds hub-level snapshots, evaluates automation scenarios, and dispatches device actions over gRPC.
 
-The project models a realistic telemetry pipeline for connected-home systems:
+The repository is useful both as a learning project and as a reference implementation for resilient backend design around Spring Boot, Kafka, Avro, PostgreSQL, Flyway, and gRPC.
 
-- devices and hubs publish events into the platform;
-- the platform aggregates raw sensor streams into hub-level snapshots;
-- the analyzer evaluates user-defined automation scenarios and sends device actions back through a hub router.
+## What PulseHome does
 
-This repository is meant to be useful both as a learning project and as a production-style reference for event-driven backend design in Java.
+- ingests raw sensor and hub events;
+- keeps the latest state of every hub in snapshot form;
+- persists hub configuration and automation scenarios;
+- evaluates scenarios against incoming snapshots;
+- sends device commands back through a hub router;
+- stays aligned with a Java 25 runtime baseline for both local development and Docker deployment.
 
-## Why this project exists
-
-PulseHome was built to explore the core backend problems behind Smart Home automation:
-
-- ingesting heterogeneous device and hub events;
-- keeping an up-to-date view of home state;
-- evaluating user scenarios safely and repeatably;
-- handling retries, deduplication, and graceful shutdown in long-running Kafka workers;
-- keeping service boundaries clean between transport formats, persistence, and domain logic.
-
-## Architecture
+## Architecture at a glance
 
 ```mermaid
 flowchart LR
-    subgraph Devices ["External World"]
-        A["Sensors & Hubs"]
+    classDef edge fill:#7c3aed,color:#ffffff,stroke:#4c1d95,stroke-width:2px;
+    classDef ingress fill:#0ea5e9,color:#f8fafc,stroke:#075985,stroke-width:2px;
+    classDef worker fill:#f97316,color:#fff7ed,stroke:#9a3412,stroke-width:2px;
+    classDef topic fill:#fde047,color:#422006,stroke:#ca8a04,stroke-width:2px;
+    classDef storage fill:#22c55e,color:#052e16,stroke:#166534,stroke-width:2px;
+    classDef contract fill:#14b8a6,color:#f0fdfa,stroke:#0f766e,stroke-width:2px;
+
+    subgraph External["External actors"]
+        Sensors["Sensors"]
+        Hubs["Hubs"]
+        Router["Hub Router"]
     end
 
-    subgraph Platform ["PulseHome (Java Services)"]
-        B["Collector"]
-        D["Aggregator"]
-        F["Analyzer"]
+    subgraph Platform["PulseHome services"]
+        Collector["Collector\nHTTP ingestion + auth + health"]
+        Aggregator["Aggregator\nsnapshot builder"]
+        Analyzer["Analyzer\nrules engine + dispatch"]
     end
 
-    subgraph Infra ["Storage & Messaging"]
-        C{{"Kafka Topics"}}
-        H[("PostgreSQL")]
+    subgraph Messaging["Kafka topics"]
+        SensorsTopic[("telemetry.sensors.v1")]
+        HubsTopic[("telemetry.hubs.v1")]
+        SnapshotsTopic[("telemetry.snapshots.v1")]
+        HubsDlq[("telemetry.hubs.dlq.v1")]
+        SnapshotsDlq[("telemetry.snapshots.dlq.v1")]
     end
 
-    A -->|HTTP/JSON| B
-    B -->|Avro| C
-    C --> D
-    D -->|Snapshots| C
-    C --> F
-    F <--> H
-    F -->|gRPC| G["Hub Router"]
-    
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style D fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#f9f,stroke:#333,stroke-width:2px
-    style C fill:#fff,stroke:#333,stroke-dasharray: 5 5
+    subgraph Persistence["State and contracts"]
+        Db[("PostgreSQL")]
+        Schemas["Avro + Protobuf contracts"]
+    end
 
+    Sensors -->|"HTTP /events/sensors"| Collector
+    Hubs -->|"HTTP /events/hubs"| Collector
+    Collector -->|"Avro publish"| SensorsTopic
+    Collector -->|"Avro publish"| HubsTopic
+    Schemas -. shared contracts .- Collector
+    Schemas -. shared contracts .- Aggregator
+    Schemas -. shared contracts .- Analyzer
+
+    SensorsTopic -->|"raw sensor events"| Aggregator
+    Aggregator -->|"hub snapshots"| SnapshotsTopic
+    SnapshotsTopic -->|"snapshot analysis"| Analyzer
+    HubsTopic -->|"hub config events"| Analyzer
+    Analyzer -->|"persist config + dedupe state"| Db
+    Analyzer -->|"gRPC device actions"| Router
+    Analyzer -->|"poison hub events"| HubsDlq
+    Analyzer -->|"poison snapshots"| SnapshotsDlq
+
+    class Sensors,Hubs,Router edge;
+    class Collector ingress;
+    class Aggregator,Analyzer worker;
+    class SensorsTopic,HubsTopic,SnapshotsTopic,HubsDlq,SnapshotsDlq topic;
+    class Db storage;
+    class Schemas contract;
 ```
 
-## Implemented modules
+## Processing flow
 
-The root project is a multi-module Maven build.
+1. Devices and hubs send JSON payloads to the Collector.
+2. Collector validates, serializes, and publishes events into Kafka.
+3. Aggregator consumes sensor events and builds the latest hub snapshot.
+4. Analyzer consumes snapshots and hub configuration events, keeps durable state in PostgreSQL, evaluates scenarios, and dispatches actions through the Hub Router.
+5. Poison messages are isolated into dedicated DLQ topics instead of stopping the whole pipeline.
 
-### `telemetry`
+## Repository structure
 
-This is the main implemented area of the repository.
-
-- `telemetry/collector`
-  Receives incoming events and publishes them to Kafka.
-- `telemetry/aggregator`
-  Consumes raw sensor events, maintains the latest hub snapshot, and publishes updated snapshots.
-- `telemetry/analyzer`
-  Stores hub configuration and scenarios, analyzes incoming snapshots, and dispatches device actions through gRPC.
-- `telemetry/serialization`
-  Contains shared Avro schemas, generated contracts, and protobuf/gRPC contracts.
-
-### `infra` and `commerce`
-
-These modules are present in the build as future extension points, but the current working implementation is focused on the telemetry pipeline.
+| Module | Purpose |
+| --- | --- |
+| `telemetry/collector` | Spring Boot web service for HTTP ingestion, security, async Kafka publishing, and actuator health |
+| `telemetry/aggregator` | Spring Boot worker that rebuilds current hub state and publishes snapshots |
+| `telemetry/analyzer` | Spring Boot worker that stores hub config, evaluates scenarios, and dispatches actions |
+| `telemetry/serialization/avro-schemas` | Shared Avro contracts, serializer/deserializer helpers, generated classes |
+| `telemetry/serialization/proto-schemas` | Shared protobuf and gRPC contracts |
+| `infra/hub-router-stub` | Local gRPC stub for end-to-end smoke testing |
+| `commerce` | Reserved extension point, currently not part of the active telemetry flow |
 
 ## Service responsibilities
 
 ### Collector
 
-Collector is a Spring Boot web application that accepts incoming event payloads and pushes them into Kafka.
-
-Current endpoints:
-
-- `POST /events/sensors`
-- `POST /events/hubs`
-
-Kafka topics:
-
-- `telemetry.sensors.v1`
-- `telemetry.hubs.v1`
+- exposes `POST /events/sensors`
+- exposes `POST /events/hubs`
+- protects ingestion endpoints with Basic Auth
+- publishes to `telemetry.sensors.v1` and `telemetry.hubs.v1`
+- exposes `GET /actuator/health`
 
 ### Aggregator
 
-Aggregator is a non-web Spring Boot worker.
-
-It:
-
-- consumes `telemetry.sensors.v1`;
-- keeps the latest sensor state per hub;
-- emits updated snapshots to `telemetry.snapshots.v1`;
-- avoids unnecessary snapshot writes when state has not changed.
+- consumes `telemetry.sensors.v1`
+- restores the last known snapshot state before replay
+- keeps hub snapshots in memory with guarded lifecycle/shutdown logic
+- publishes updated snapshots to `telemetry.snapshots.v1`
 
 ### Analyzer
 
-Analyzer is a non-web Spring Boot worker with two independent Kafka processing loops.
+- consumes `telemetry.hubs.v1`
+- consumes `telemetry.snapshots.v1`
+- persists sensors, scenarios, conditions, actions, and dispatch history in PostgreSQL
+- retries transient action dispatch failures
+- sends poisoned hub and snapshot messages to DLQ topics
+- dispatches actions through the Hub Router gRPC client
 
-It:
+## Event contracts and topic map
 
-- consumes hub configuration events from `telemetry.hubs.v1`;
-- consumes hub snapshots from `telemetry.snapshots.v1`;
-- persists sensors, scenarios, conditions, and actions in PostgreSQL;
-- evaluates scenarios against the latest hub snapshot;
-- dispatches device actions through the Hub Router gRPC client;
-- tracks dispatched actions to avoid unsafe replays on retryable failures.
+| Topic | Producer | Consumer | Payload |
+| --- | --- | --- | --- |
+| `telemetry.sensors.v1` | Collector | Aggregator | `SensorEventAvro` |
+| `telemetry.hubs.v1` | Collector | Analyzer | `HubEventAvro` |
+| `telemetry.snapshots.v1` | Aggregator | Analyzer | `SensorsSnapshotAvro` |
+| `telemetry.hubs.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
+| `telemetry.snapshots.dlq.v1` | Analyzer | Ops / debugging | JSON dead-letter envelope |
 
 ## Technology stack
 
 - Java 25
-- Maven
+- Maven 3.9+
 - Spring Boot 3.5
 - Apache Kafka
 - Apache Avro
@@ -128,34 +143,99 @@ It:
 - PostgreSQL
 - Flyway
 - H2 for tests
+- Docker Compose for local production-like runs
 
-## Prerequisites
+## Java 25 baseline
 
-Before running the services locally, make sure you have:
+PulseHome is intentionally aligned to Java 25.
+
+What is already tuned for it:
+
+- Docker runtime uses Java 25 and enables the native-access flags needed by modern gRPC/Netty stacks.
+- Local Maven runs use [.mvn/jvm.config](./.mvn/jvm.config) to suppress Java 25 `sun.misc.Unsafe` noise coming from Maven internals.
+- Surefire disables CDS sharing for test JVMs to avoid noisy Java 25 bootstrap warnings.
+- Docker and local Maven builds are kept warning-clean for the current toolchain baseline.
+
+## Quick start with Docker
+
+This is the fastest way to run the whole stack locally.
+
+```bash
+docker compose up --build -d
+```
+
+What starts:
+
+- Kafka
+- PostgreSQL
+- Collector
+- Aggregator
+- Analyzer
+- Hub Router Stub
+
+Quick checks:
+
+```bash
+curl http://localhost:8080/actuator/health
+docker compose ps
+docker compose logs -f collector
+```
+
+Local compose uses these sample Collector credentials:
+
+- username: `collector`
+- password: `collector-secret`
+
+To stop the stack:
+
+```bash
+docker compose down
+```
+
+## Local development without Docker
+
+Prerequisites:
 
 - JDK 25
 - Maven 3.9+
-- Kafka running locally or reachable from the configured bootstrap servers
-- PostgreSQL for the Analyzer runtime database
-- a Hub Router gRPC endpoint if you want to exercise real Analyzer action dispatch
+- Kafka reachable by configured bootstrap servers
+- PostgreSQL for Analyzer runtime
+- a Hub Router gRPC endpoint, or the local stub from `infra/hub-router-stub`
+
+Recommended startup order:
+
+1. Kafka
+2. PostgreSQL
+3. Hub Router Stub
+4. Collector
+5. Aggregator
+6. Analyzer
+
+Run services from the repository root:
+
+```bash
+mvn -pl infra/hub-router-stub spring-boot:run
+mvn -pl telemetry/collector spring-boot:run
+mvn -pl telemetry/aggregator spring-boot:run
+mvn -pl telemetry/analyzer spring-boot:run
+```
 
 ## Configuration
 
-The services are configured through Spring Boot `application.yml` files and environment variables.
+The services use Spring profiles and environment variables. `dev` is aimed at local work, and `prod` is used by Docker Compose.
 
-Most important defaults:
-
-- Kafka bootstrap servers: `localhost:9092`
-- Analyzer PostgreSQL URL: `jdbc:postgresql://localhost:5432/analyzer`
-- Analyzer Hub Router gRPC address: `localhost:59090`
-
-Useful environment variables:
+Most important variables:
 
 ```bash
+SPRING_PROFILES_ACTIVE=dev
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 ANALYZER_DATASOURCE_URL=jdbc:postgresql://localhost:5432/analyzer
-ANALYZER_DATASOURCE_USERNAME=postgres
-ANALYZER_DATASOURCE_PASSWORD=postgres
+ANALYZER_DATASOURCE_USERNAME=pulsehome
+ANALYZER_DATASOURCE_PASSWORD=pulsehome
+GRPC_HUB_ROUTER_ADDRESS=static://localhost:59090
+GRPC_HUB_ROUTER_NEGOTIATION_TYPE=plaintext
+COLLECTOR_BASIC_AUTH_USERNAME=collector
+COLLECTOR_BASIC_AUTH_PASSWORD=collector-secret
 ```
 
 ## Build and test
@@ -163,71 +243,33 @@ ANALYZER_DATASOURCE_PASSWORD=postgres
 Run the full test suite:
 
 ```bash
-mvn test
+mvn test -DskipITs
 ```
 
-Run tests for a single module:
+Run a single module:
 
 ```bash
-mvn -pl telemetry/collector test
-mvn -pl telemetry/aggregator test
-mvn -pl telemetry/analyzer test
+mvn -pl telemetry/collector test -DskipITs
+mvn -pl telemetry/aggregator test -DskipITs
+mvn -pl telemetry/analyzer test -DskipITs
 ```
 
-Build the full project:
+Build the full repository:
 
 ```bash
-mvn clean verify
+mvn clean verify -DskipITs
 ```
 
-## Running the services locally
+## Engineering focus
 
-Start the services in this order:
+PulseHome is intentionally more structured than a minimal demo. The main engineering priorities are:
 
-1. Kafka
-2. PostgreSQL
-3. Collector
-4. Aggregator
-5. Analyzer
-
-Run each service from the repository root:
-
-```bash
-mvn -pl telemetry/collector spring-boot:run
-mvn -pl telemetry/aggregator spring-boot:run
-mvn -pl telemetry/analyzer spring-boot:run
-```
-
-## Development notes
-
-- Collector currently exposes HTTP endpoints for ingestion.
-- Aggregator and Analyzer are non-web worker processes.
-- Analyzer uses PostgreSQL at runtime and H2 in tests.
-- Shared wire contracts live in the serialization modules so that services can evolve around a common event model.
-
-## Quality goals
-
-This repository intentionally aims higher than a minimal coursework solution.
-
-Key design goals include:
-
-- clear service boundaries;
 - explicit schema contracts;
-- safe Kafka offset management;
-- retry-aware processing;
-- idempotent action dispatch tracking;
-- production-style configuration and validation;
-- maintainable, testable code over ad-hoc shortcuts.
-
-## Roadmap ideas
-
-Possible future improvements include:
-
-- containerized local infrastructure for one-command startup;
-- end-to-end integration tests with Kafka and PostgreSQL;
-- observability dashboards and metrics;
-- a reference Hub Router implementation;
-- richer scenario types and device capabilities.
+- stable Java 25 runtime behavior;
+- resilient Kafka workers with graceful shutdown;
+- safe retry and DLQ handling;
+- repeatable local production-like runs with Docker Compose;
+- clear service boundaries and testable code.
 
 ## License
 

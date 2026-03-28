@@ -41,7 +41,9 @@ class HubEventDeadLetterPublisherTest {
         CompletableFuture<RecordMetadata> sendResult = CompletableFuture.completedFuture(mock(RecordMetadata.class));
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<ProducerRecord<String, String>> recordCaptor = ArgumentCaptor.forClass((Class) ProducerRecord.class);
+        Class<ProducerRecord<String, String>> producerRecordClass =
+                (Class<ProducerRecord<String, String>>) (Class<?>) ProducerRecord.class;
+        ArgumentCaptor<ProducerRecord<String, String>> recordCaptor = ArgumentCaptor.forClass(producerRecordClass);
         when(producer.send(recordCaptor.capture())).thenAnswer(invocation -> sendResult);
 
         publisher.publish(record, new IllegalStateException("invalid scenario"));
