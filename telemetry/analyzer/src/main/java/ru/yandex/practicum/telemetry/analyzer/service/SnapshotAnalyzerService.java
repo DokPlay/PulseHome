@@ -115,8 +115,9 @@ public class SnapshotAnalyzerService {
 
         OptionalInt actualValue = extractConditionValue(specificRecordBase, condition.type());
         if (actualValue.isEmpty()) {
-            log.debug("Scenario condition could not extract value from sensor payload. hubId={}, scenario={}, sensorId={}, conditionType={}, payloadType={}",
-                    scenario.hubId(), scenario.name(), condition.sensorId(), condition.type(), sensorData.getClass().getSimpleName());
+            log.warn("Scenario condition is incompatible with current sensor payload. hubId={}, scenario={}, sensorId={}, conditionType={}, payloadType={}, expectedPayloads={}",
+                    scenario.hubId(), scenario.name(), condition.sensorId(), condition.type(),
+                    sensorData.getClass().getSimpleName(), expectedPayloads(condition.type()));
             return false;
         }
 
@@ -155,6 +156,19 @@ public class SnapshotAnalyzerService {
             case HUMIDITY -> sensorData instanceof ClimateSensorAvro climateSensor
                     ? OptionalInt.of(climateSensor.getHumidity())
                     : OptionalInt.empty();
+        };
+    }
+
+    private String expectedPayloads(ConditionType conditionType) {
+        return switch (conditionType) {
+            case MOTION -> MotionSensorAvro.class.getSimpleName();
+            case LUMINOSITY -> LightSensorAvro.class.getSimpleName();
+            case SWITCH -> SwitchSensorAvro.class.getSimpleName();
+            case TEMPERATURE -> "%s|%s".formatted(
+                    TemperatureSensorAvro.class.getSimpleName(),
+                    ClimateSensorAvro.class.getSimpleName()
+            );
+            case CO2LEVEL, HUMIDITY -> ClimateSensorAvro.class.getSimpleName();
         };
     }
 
