@@ -5,10 +5,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import ru.yandex.practicum.telemetry.collector.config.CollectorSecurityConfig;
 import ru.yandex.practicum.telemetry.collector.config.CollectorSecurityProperties;
@@ -47,23 +49,31 @@ class EventControllerTest {
     @Autowired
     private CollectorSecurityProperties collectorSecurityProperties;
 
-    private ResultActions performJsonPost(String url, String payload) throws Exception {
-        return Objects.requireNonNull(mockMvc.perform(post(url)
-                .with(SecurityMockMvcRequestPostProcessors.httpBasic(
-                        collectorSecurityProperties.getUsername(),
-                        collectorSecurityProperties.getPassword()
-                ))
+    private ResultActions performJsonPost(@NonNull String url, @NonNull String payload) throws Exception {
+        String nonNullUrl = Objects.requireNonNull(url);
+        String nonNullPayload = Objects.requireNonNull(payload);
+        String username = Objects.requireNonNull(collectorSecurityProperties.getUsername());
+        String password = Objects.requireNonNull(collectorSecurityProperties.getPassword());
+        RequestPostProcessor basicAuth = Objects.requireNonNull(
+                SecurityMockMvcRequestPostProcessors.httpBasic(username, password)
+        );
+
+        return Objects.requireNonNull(mockMvc.perform(post(nonNullUrl)
+                .with(basicAuth)
                 .contentType(JSON_MEDIA_TYPE)
-                .content(payload)));
+                .content(nonNullPayload)));
     }
 
-    private ResultActions performUnauthenticatedJsonPost(String url, String payload) throws Exception {
-        return Objects.requireNonNull(mockMvc.perform(post(url)
+    private ResultActions performUnauthenticatedJsonPost(@NonNull String url, @NonNull String payload) throws Exception {
+        String nonNullUrl = Objects.requireNonNull(url);
+        String nonNullPayload = Objects.requireNonNull(payload);
+
+        return Objects.requireNonNull(mockMvc.perform(post(nonNullUrl)
                 .contentType(JSON_MEDIA_TYPE)
-                .content(payload)));
+                .content(nonNullPayload)));
     }
 
-    private ResultActions performAsyncJsonPost(String url, String payload) throws Exception {
+    private ResultActions performAsyncJsonPost(@NonNull String url, @NonNull String payload) throws Exception {
         MvcResult asyncResult = performJsonPost(url, payload)
                 .andExpect(request().asyncStarted())
                 .andReturn();
