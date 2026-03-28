@@ -71,12 +71,13 @@ class SnapshotAnalyzerServiceTest {
                         List.of(action)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), action)).thenReturn(false);
+        when(actionDispatchTracker.claimDispatch("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), action))
+                .thenReturn(true);
 
         service.analyze(snapshot);
 
         verify(dispatcher).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), action);
-        verify(actionDispatchTracker).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), action);
+        verify(actionDispatchTracker).claimDispatch("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), action);
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
@@ -163,10 +164,10 @@ class SnapshotAnalyzerServiceTest {
                         List.of(firstAction, secondAction)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), firstAction))
-                .thenReturn(false, true);
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "hall-light", snapshot.getVersion(), secondAction))
-                .thenReturn(false, false);
+        when(actionDispatchTracker.claimDispatch("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), firstAction))
+                .thenReturn(true, false);
+        when(actionDispatchTracker.claimDispatch("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), secondAction))
+                .thenReturn(true, true);
         org.mockito.Mockito.doThrow(new RetryableActionDispatchException("retryable", new RuntimeException()))
                 .doNothing()
                 .when(dispatcher).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
@@ -178,8 +179,7 @@ class SnapshotAnalyzerServiceTest {
 
         verify(dispatcher, times(1)).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), firstAction);
         verify(dispatcher, times(2)).dispatch("hub-1", "hall-light", snapshot.getTimestamp(), secondAction);
-        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), firstAction);
-        verify(actionDispatchTracker, times(1)).markDispatched("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), secondAction);
+        verify(actionDispatchTracker).releaseDispatchClaim("hub-1", "hall-light", snapshot.getTimestamp(), snapshot.getVersion(), secondAction);
         verify(actionDispatchTracker, times(2)).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
@@ -200,12 +200,13 @@ class SnapshotAnalyzerServiceTest {
                         List.of(action)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "warm-room", snapshot.getVersion(), action)).thenReturn(false);
+        when(actionDispatchTracker.claimDispatch("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action))
+                .thenReturn(true);
 
         service.analyze(snapshot);
 
         verify(dispatcher).dispatch("hub-1", "warm-room", snapshot.getTimestamp(), action);
-        verify(actionDispatchTracker).markDispatched("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action);
+        verify(actionDispatchTracker).claimDispatch("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action);
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 
@@ -226,12 +227,13 @@ class SnapshotAnalyzerServiceTest {
                         List.of(action)
                 )
         ));
-        when(actionDispatchTracker.isAlreadyDispatched("hub-1", "warm-room", snapshot.getVersion(), action)).thenReturn(false);
+        when(actionDispatchTracker.claimDispatch("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action))
+                .thenReturn(true);
 
         service.analyze(snapshot);
 
         verify(dispatcher).dispatch("hub-1", "warm-room", snapshot.getTimestamp(), action);
-        verify(actionDispatchTracker).markDispatched("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action);
+        verify(actionDispatchTracker).claimDispatch("hub-1", "warm-room", snapshot.getTimestamp(), snapshot.getVersion(), action);
         verify(actionDispatchTracker).pruneOlderSnapshots("hub-1", snapshot.getVersion());
     }
 

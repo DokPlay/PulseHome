@@ -53,12 +53,12 @@ public class KafkaConsumerConfig {
         );
     }
 
-    @Bean(name = "hubEventDlqProducer", destroyMethod = "")
+    @Bean(name = "hubEventDlqProducer")
     public Producer<String, String> hubEventDlqProducer(AnalyzerKafkaProperties properties) {
         return dlqProducer(properties, properties.getHubsConsumer().getClientIdPrefix());
     }
 
-    @Bean(name = "snapshotDlqProducer", destroyMethod = "")
+    @Bean(name = "snapshotDlqProducer")
     public Producer<String, String> snapshotDlqProducer(AnalyzerKafkaProperties properties) {
         return dlqProducer(properties, properties.getSnapshotsConsumer().getClientIdPrefix());
     }

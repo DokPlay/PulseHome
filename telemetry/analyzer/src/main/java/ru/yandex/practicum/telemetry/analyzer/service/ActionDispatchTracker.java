@@ -28,18 +28,36 @@ public class ActionDispatchTracker {
         );
     }
 
-    public void markDispatched(String hubId,
-                               String scenarioName,
-                               Instant snapshotTimestamp,
-                               long snapshotVersion,
-                               ActionSpec actionSpec) {
-        actionDispatchRepository.insertIgnore(
+    @Transactional
+    public boolean claimDispatch(String hubId,
+                                 String scenarioName,
+                                 Instant snapshotTimestamp,
+                                 long snapshotVersion,
+                                 ActionSpec actionSpec) {
+        return actionDispatchRepository.insertIgnore(
                 hubId,
                 scenarioName,
                 snapshotTimestamp,
                 snapshotVersion,
                 actionSpec.sensorId(),
                 actionSpec.type().name(),
+                actionSpec.value()
+        ) > 0;
+    }
+
+    @Transactional
+    public void releaseDispatchClaim(String hubId,
+                                     String scenarioName,
+                                     Instant snapshotTimestamp,
+                                     long snapshotVersion,
+                                     ActionSpec actionSpec) {
+        actionDispatchRepository.deleteDispatch(
+                hubId,
+                scenarioName,
+                snapshotTimestamp,
+                snapshotVersion,
+                actionSpec.sensorId(),
+                actionSpec.type(),
                 actionSpec.value()
         );
     }

@@ -38,6 +38,18 @@ class AggregatorKafkaPropertiesValidationTest {
                 .contains("aggregator.kafka.producer.maxInFlightRequestsPerConnection must be <= 5 when idempotence is enabled");
     }
 
+    @Test
+    void shouldRejectUnsupportedAutoOffsetResetValue() {
+        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        properties.getConsumer().setAutoOffsetReset("random");
+
+        Set<ConstraintViolation<AggregatorKafkaProperties>> violations = validate(properties);
+
+        assertThat(violations)
+                .extracting(ConstraintViolation::getMessage)
+                .contains("aggregator.kafka.consumer.autoOffsetReset must be one of: earliest, latest, none");
+    }
+
     private Set<ConstraintViolation<AggregatorKafkaProperties>> validate(AggregatorKafkaProperties properties) {
         try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
             Validator validator = validatorFactory.getValidator();

@@ -2,6 +2,7 @@ package ru.yandex.practicum.telemetry.collector.dto.hub;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.HubEventType;
 
 import java.time.Instant;
@@ -19,6 +20,7 @@ import java.time.Instant;
 })
 public sealed interface HubEvent permits DeviceAddedEvent, DeviceRemovedEvent, ScenarioAddedEvent, ScenarioRemovedEvent {
 
+    @Size(max = 255)
     String hubId();
 
     Instant timestamp();

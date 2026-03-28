@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -196,6 +197,8 @@ class SnapshotProcessorTest {
         when(consumer.poll(properties.getSnapshotsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
         org.mockito.Mockito.doThrow(new IllegalStateException("invalid action"))
                 .when(snapshotAnalyzerService).analyze(failingSnapshot);
+        when(snapshotDeadLetterPublisher.publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(true);
 
         SnapshotProcessor processor = new SnapshotProcessor(
                 consumer,
@@ -209,5 +212,49 @@ class SnapshotProcessorTest {
                 org.mockito.ArgumentMatchers.any(IllegalStateException.class));
         verify(snapshotAnalyzerService).analyze(healthySnapshot);
         verify(consumer).commitSync(Map.of(partition, new OffsetAndMetadata(2L)));
+    }
+
+    @Test
+    void shouldFailFastWhenSnapshotDlqPublishFails() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, SensorsSnapshotAvro> consumer = mock(Consumer.class);
+        SnapshotAnalyzerService snapshotAnalyzerService = mock(SnapshotAnalyzerService.class);
+        SnapshotDeadLetterPublisher snapshotDeadLetterPublisher = mock(SnapshotDeadLetterPublisher.class);
+        AnalyzerKafkaProperties properties = new AnalyzerKafkaProperties();
+
+        SensorsSnapshotAvro failingSnapshot = SensorsSnapshotAvro.newBuilder()
+                .setHubId("hub-1")
+                .setVersion(1)
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setSensorsState(Map.of())
+                .build();
+
+        ConsumerRecord<String, SensorsSnapshotAvro> failingRecord =
+                new ConsumerRecord<>("telemetry.snapshots.v1", 0, 0L, "hub-1", failingSnapshot);
+        TopicPartition partition = new TopicPartition("telemetry.snapshots.v1", 0);
+        ConsumerRecords<String, SensorsSnapshotAvro> records = new ConsumerRecords<>(Map.of(
+                partition, List.of(failingRecord)
+        ));
+
+        when(consumer.poll(properties.getSnapshotsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
+        org.mockito.Mockito.doThrow(new IllegalStateException("invalid action"))
+                .when(snapshotAnalyzerService).analyze(failingSnapshot);
+        when(snapshotDeadLetterPublisher.publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(false);
+
+        SnapshotProcessor processor = new SnapshotProcessor(
+                consumer,
+                properties,
+                snapshotAnalyzerService,
+                snapshotDeadLetterPublisher
+        );
+        assertThatThrownBy(processor::start)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Snapshot processor stopped after a fatal error");
+
+        verify(snapshotDeadLetterPublisher).publish(org.mockito.ArgumentMatchers.same(failingRecord),
+                org.mockito.ArgumentMatchers.any(IllegalStateException.class));
+        verify(consumer, never()).commitSync(Map.of(partition, new OffsetAndMetadata(1L)));
+        verify(consumer).close();
     }
 }

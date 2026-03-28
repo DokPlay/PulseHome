@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
@@ -254,13 +256,44 @@ class EventControllerTest {
                 }
                 """;
 
-        when(collectorEventService.collectHubEvent(any())).thenReturn(
-                CompletableFuture.failedFuture(new InvalidScenarioConditionValueException("Boolean-like condition value must be 0 or 1"))
-        );
+        doThrow(new InvalidScenarioConditionValueException("Boolean-like condition value must be 0 or 1"))
+                .when(collectorEventService)
+                .collectHubEvent(any());
 
-        performAsyncJsonPost("/events/hubs", payload)
+        performJsonPost("/events/hubs", payload)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Boolean-like condition value must be 0 or 1"));
+    }
+
+    @Test
+    void shouldRejectScenarioConditionWithoutValueBeforePublishing() throws Exception {
+        String payload = """
+                {
+                  "hubId": "hub-1",
+                  "timestamp": "2024-08-06T15:11:24.157Z",
+                  "type": "SCENARIO_ADDED",
+                  "name": "Night light",
+                  "conditions": [
+                    {
+                      "sensorId": "sensor.temperature.1",
+                      "type": "TEMPERATURE",
+                      "operation": "GREATER_THAN"
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "sensorId": "sensor.switch.1",
+                      "type": "ACTIVATE"
+                    }
+                  ]
+                }
+                """;
+
+        performJsonPost("/events/hubs", payload)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("conditions[0].valueForConfiguredCondition Scenario condition value is required"));
+
+        verify(collectorEventService, never()).collectHubEvent(any());
     }
 
     @Test

@@ -3,8 +3,10 @@ package ru.yandex.practicum.telemetry.aggregator.service;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.RecordDeserializationException;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -99,6 +102,69 @@ class SnapshotStateRestorerTest {
 
         verify(consumer).close();
         verify(aggregationService, never()).restoreSnapshot(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void shouldStopRestoreWhenCancelledDuringPoll() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, SensorsSnapshotAvro> consumer = mock(Consumer.class);
+        SnapshotAggregationService aggregationService = mock(SnapshotAggregationService.class);
+        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        SnapshotStateRestorer[] holder = new SnapshotStateRestorer[1];
+        TopicPartition partition = new TopicPartition("telemetry.snapshots.v1", 0);
+
+        when(consumer.partitionsFor("telemetry.snapshots.v1"))
+                .thenReturn(List.of(new PartitionInfo("telemetry.snapshots.v1", 0, null, null, null)));
+        when(consumer.endOffsets(List.of(partition))).thenReturn(Map.of(partition, 1L));
+        when(consumer.position(partition)).thenReturn(0L);
+        when(consumer.poll(properties.getPollTimeout())).thenAnswer(invocation -> {
+            holder[0].cancelRestore();
+            throw new org.apache.kafka.common.errors.WakeupException();
+        });
+
+        holder[0] = new SnapshotStateRestorer(consumer, properties, aggregationService);
+
+        assertThatCode(() -> holder[0].restorePublishedSnapshots()).doesNotThrowAnyException();
+
+        verify(consumer).wakeup();
+        verify(consumer).close();
+        verify(aggregationService, never()).restoreSnapshot(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void shouldSkipPoisonedSnapshotAndContinueRestoring() {
+        @SuppressWarnings("unchecked")
+        Consumer<String, SensorsSnapshotAvro> consumer = mock(Consumer.class);
+        SnapshotAggregationService aggregationService = mock(SnapshotAggregationService.class);
+        AggregatorKafkaProperties properties = new AggregatorKafkaProperties();
+        SnapshotStateRestorer restorer = new SnapshotStateRestorer(consumer, properties, aggregationService);
+
+        TopicPartition partition = new TopicPartition("telemetry.snapshots.v1", 0);
+        RecordDeserializationException poisonedRecord = new RecordDeserializationException(
+                partition,
+                0L,
+                "bad payload",
+                new IllegalArgumentException("broken bytes")
+        );
+        SensorsSnapshotAvro snapshot = snapshot("hub-1", 2L);
+        ConsumerRecords<String, SensorsSnapshotAvro> records = new ConsumerRecords<>(Map.of(
+                partition, List.of(new ConsumerRecord<>("telemetry.snapshots.v1", 0, 1L, "hub-1", snapshot))
+        ));
+
+        when(consumer.partitionsFor("telemetry.snapshots.v1"))
+                .thenReturn(List.of(new PartitionInfo("telemetry.snapshots.v1", 0, null, null, null)));
+        when(consumer.endOffsets(List.of(partition))).thenReturn(Map.of(partition, 2L));
+        when(consumer.position(partition)).thenReturn(0L, 1L, 2L);
+        when(consumer.poll(properties.getPollTimeout()))
+                .thenThrow(poisonedRecord)
+                .thenReturn(records);
+
+        restorer.restorePublishedSnapshots();
+
+        verify(consumer).seek(partition, 1L);
+        verify(consumer).commitSync(Map.of(partition, new OffsetAndMetadata(1L)));
+        verify(aggregationService).restoreSnapshot(snapshot);
+        verify(consumer).close();
     }
 
     private SensorsSnapshotAvro snapshot(String hubId, long version) {

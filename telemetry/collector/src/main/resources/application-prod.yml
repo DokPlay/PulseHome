@@ -2,6 +2,10 @@ collector:
   security:
     username: ${COLLECTOR_BASIC_AUTH_USERNAME}
     password: ${COLLECTOR_BASIC_AUTH_PASSWORD}
+    require-https: ${COLLECTOR_REQUIRE_HTTPS:true}
+
+server:
+  forward-headers-strategy: framework
 
 management:
   endpoint:

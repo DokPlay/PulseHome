@@ -2,10 +2,12 @@ package ru.yandex.practicum.telemetry.aggregator.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
+import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -18,18 +20,30 @@ import java.util.Optional;
 public class SnapshotAggregationService {
 
     private static final int DEFAULT_MAX_TRACKED_HUBS = 10_000;
+    private static final int DEFAULT_MAX_TRACKED_SENSORS_PER_HUB = 10_000;
     private static final Logger log = LoggerFactory.getLogger(SnapshotAggregationService.class);
 
     private final Map<String, SensorsSnapshotAvro> snapshots;
-    private final Map<String, EvictedSnapshotMetadata> evictedSnapshots;
+    private final Map<String, SensorsSnapshotAvro> evictedSnapshots;
+    private final int maxTrackedSensorsPerHub;
 
     public SnapshotAggregationService() {
-        this(DEFAULT_MAX_TRACKED_HUBS);
+        this(DEFAULT_MAX_TRACKED_HUBS, DEFAULT_MAX_TRACKED_SENSORS_PER_HUB);
+    }
+
+    @Autowired
+    public SnapshotAggregationService(AggregatorKafkaProperties properties) {
+        this(DEFAULT_MAX_TRACKED_HUBS, properties.getMaxTrackedSensorsPerHub());
     }
 
     SnapshotAggregationService(int maxTrackedHubs) {
+        this(maxTrackedHubs, DEFAULT_MAX_TRACKED_SENSORS_PER_HUB);
+    }
+
+    SnapshotAggregationService(int maxTrackedHubs, int maxTrackedSensorsPerHub) {
         this.evictedSnapshots = createEvictedSnapshotCache(maxTrackedHubs);
         this.snapshots = createSnapshotCache(maxTrackedHubs);
+        this.maxTrackedSensorsPerHub = maxTrackedSensorsPerHub;
     }
 
     public synchronized void restoreSnapshot(SensorsSnapshotAvro snapshot) {
@@ -47,6 +61,7 @@ public class SnapshotAggregationService {
         if (event.getTimestamp() == null) {
             log.warn("Received sensor event without timestamp. hubId={}, sensorId={}",
                     event.getHubId(), event.getId());
+            return Optional.empty();
         }
         Instant eventTimestamp = normalizeTimestamp(event.getTimestamp());
         SensorsSnapshotAvro snapshot = snapshots.computeIfAbsent(event.getHubId(),
@@ -60,6 +75,10 @@ public class SnapshotAggregationService {
             if (oldState.getData().equals(event.getPayload())) {
                 return Optional.empty();
             }
+        } else if (snapshot.getSensorsState().size() >= maxTrackedSensorsPerHub) {
+            log.warn("Skipping new sensor state because per-hub tracking limit was reached. hubId={}, sensorId={}, trackedSensors={}, maxTrackedSensorsPerHub={}",
+                    event.getHubId(), event.getId(), snapshot.getSensorsState().size(), maxTrackedSensorsPerHub);
+            return Optional.empty();
         }
 
         // Update only when the incoming event advances the sensor state.
@@ -72,7 +91,8 @@ public class SnapshotAggregationService {
         updatedStates.put(event.getId(), newState);
 
         Instant updatedSnapshotTimestamp = maxTimestamp(snapshot.getTimestamp(), eventTimestamp);
-        SensorsSnapshotAvro updatedSnapshot = SensorsSnapshotAvro.newBuilder(snapshot)
+        SensorsSnapshotAvro updatedSnapshot = SensorsSnapshotAvro.newBuilder()
+                .setHubId(snapshot.getHubId())
                 .setVersion(snapshot.getVersion() + 1)
                 .setTimestamp(updatedSnapshotTimestamp)
                 .setSensorsState(updatedStates)
@@ -82,19 +102,17 @@ public class SnapshotAggregationService {
     }
 
     private SensorsSnapshotAvro createInitialSnapshot(String hubId, Instant timestamp) {
-        EvictedSnapshotMetadata evictedMetadata = evictedSnapshots.remove(hubId);
-        if (evictedMetadata == null) {
+        SensorsSnapshotAvro evictedSnapshot = evictedSnapshots.remove(hubId);
+        if (evictedSnapshot == null) {
             return createEmptySnapshot(hubId, timestamp);
         }
 
-        Instant restoredTimestamp = maxTimestamp(evictedMetadata.timestamp(), timestamp);
+        SensorsSnapshotAvro restoredSnapshot = copySnapshot(evictedSnapshot);
+        Instant restoredTimestamp = maxTimestamp(restoredSnapshot.getTimestamp(), timestamp);
         log.warn("Rebuilding snapshot after hub state eviction. hubId={}, lastKnownVersion={}, lastKnownSensors={}, lastKnownTimestamp={}",
-                hubId, evictedMetadata.version(), evictedMetadata.sensorCount(), evictedMetadata.timestamp());
-        return SensorsSnapshotAvro.newBuilder()
-                .setHubId(hubId)
-                .setVersion(evictedMetadata.version())
+                hubId, restoredSnapshot.getVersion(), restoredSnapshot.getSensorsState().size(), restoredSnapshot.getTimestamp());
+        return SensorsSnapshotAvro.newBuilder(restoredSnapshot)
                 .setTimestamp(restoredTimestamp)
-                .setSensorsState(new HashMap<>())
                 .build();
     }
 
@@ -141,11 +159,7 @@ public class SnapshotAggregationService {
                 boolean shouldEvict = size() > maxTrackedHubs;
                 if (shouldEvict) {
                     SensorsSnapshotAvro snapshot = eldestEntry.getValue();
-                    evictedSnapshots.put(eldestEntry.getKey(), new EvictedSnapshotMetadata(
-                            snapshot.getVersion(),
-                            snapshot.getTimestamp(),
-                            snapshot.getSensorsState().size()
-                    ));
+                    evictedSnapshots.put(eldestEntry.getKey(), copySnapshot(snapshot));
                     log.warn("Evicting hub snapshot from LRU cache. hubId={}, version={}, sensorCount={}, timestamp={}, maxTrackedHubs={}",
                             eldestEntry.getKey(), snapshot.getVersion(), snapshot.getSensorsState().size(),
                             snapshot.getTimestamp(), maxTrackedHubs);
@@ -155,15 +169,12 @@ public class SnapshotAggregationService {
         };
     }
 
-    private Map<String, EvictedSnapshotMetadata> createEvictedSnapshotCache(int maxTrackedHubs) {
+    private Map<String, SensorsSnapshotAvro> createEvictedSnapshotCache(int maxTrackedHubs) {
         return new LinkedHashMap<>(16, 0.75f, false) {
             @Override
-            protected boolean removeEldestEntry(Map.Entry<String, EvictedSnapshotMetadata> eldestEntry) {
+            protected boolean removeEldestEntry(Map.Entry<String, SensorsSnapshotAvro> eldestEntry) {
                 return size() > maxTrackedHubs;
             }
         };
-    }
-
-    private record EvictedSnapshotMetadata(long version, Instant timestamp, int sensorCount) {
     }
 }

@@ -2,6 +2,7 @@ package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
 import java.time.Instant;
@@ -20,8 +21,10 @@ import java.time.Instant;
 })
 public sealed interface SensorEvent permits ClimateSensorEvent, LightSensorEvent, MotionSensorEvent, SwitchSensorEvent, TemperatureSensorEvent {
 
+    @Size(max = 255)
     String id();
 
+    @Size(max = 255)
     String hubId();
 
     Instant timestamp();

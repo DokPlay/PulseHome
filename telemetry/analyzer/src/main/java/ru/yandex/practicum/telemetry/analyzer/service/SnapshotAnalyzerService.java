@@ -62,34 +62,45 @@ public class SnapshotAnalyzerService {
         log.info("Scenario matched. hubId={}, scenario={}, actions={}",
                 snapshot.getHubId(), scenario.name(), scenario.actions().size());
 
-        scenario.actions().stream()
-                .filter(action -> shouldDispatchAction(snapshot, scenario, action))
-                .forEach(action -> {
-                    log.debug("Dispatching scenario action. hubId={}, scenario={}, sensorId={}, actionType={}",
-                            snapshot.getHubId(), scenario.name(), action.sensorId(), action.type());
-                    deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
-                    actionDispatchTracker.markDispatched(
-                            snapshot.getHubId(),
-                            scenario.name(),
-                            snapshot.getTimestamp(),
-                            snapshot.getVersion(),
-                            action
-                    );
-                });
+        scenario.actions().forEach(action -> dispatchScenarioAction(snapshot, scenario, action));
     }
 
-    private boolean shouldDispatchAction(SensorsSnapshotAvro snapshot, ScenarioDefinition scenario, ActionSpec action) {
-        boolean alreadyDispatched = actionDispatchTracker.isAlreadyDispatched(
+    private void dispatchScenarioAction(SensorsSnapshotAvro snapshot, ScenarioDefinition scenario, ActionSpec action) {
+        boolean claimed = actionDispatchTracker.claimDispatch(
                 snapshot.getHubId(),
                 scenario.name(),
+                snapshot.getTimestamp(),
                 snapshot.getVersion(),
                 action
         );
-        if (alreadyDispatched) {
+        if (!claimed) {
             log.debug("Skipping already dispatched action. hubId={}, scenario={}, sensorId={}, actionType={}, snapshotVersion={}",
                     snapshot.getHubId(), scenario.name(), action.sensorId(), action.type(), snapshot.getVersion());
+            return;
         }
-        return !alreadyDispatched;
+
+        try {
+            log.debug("Dispatching scenario action. hubId={}, scenario={}, sensorId={}, actionType={}",
+                    snapshot.getHubId(), scenario.name(), action.sensorId(), action.type());
+            deviceActionDispatcher.dispatch(snapshot.getHubId(), scenario.name(), snapshot.getTimestamp(), action);
+        } catch (RuntimeException exception) {
+            try {
+                // We intentionally prefer at-least-once delivery here. If the network fails after the hub
+                // has already received the command, releasing the claim can lead to a duplicate dispatch on
+                // replay, but it avoids silently dropping actions that never reached the hub.
+                actionDispatchTracker.releaseDispatchClaim(
+                        snapshot.getHubId(),
+                        scenario.name(),
+                        snapshot.getTimestamp(),
+                        snapshot.getVersion(),
+                        action
+                );
+            } catch (RuntimeException releaseException) {
+                exception.addSuppressed(releaseException);
+                throw new IllegalStateException("Failed to roll back action dispatch claim after dispatch failure", exception);
+            }
+            throw exception;
+        }
     }
 
     private boolean matchesAllConditions(Map<String, SensorStateAvro> sensorStates, ScenarioDefinition scenario) {

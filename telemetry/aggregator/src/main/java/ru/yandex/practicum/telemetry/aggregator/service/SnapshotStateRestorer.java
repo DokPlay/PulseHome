@@ -2,7 +2,9 @@ package ru.yandex.practicum.telemetry.aggregator.service;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.RecordDeserializationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.kafka.common.errors.WakeupException;
 
 @Component
 public class SnapshotStateRestorer {
@@ -24,6 +28,8 @@ public class SnapshotStateRestorer {
     private final AggregatorKafkaProperties properties;
     private final SnapshotAggregationService aggregationService;
     private final Clock clock;
+    private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final AtomicBoolean consumerClosed = new AtomicBoolean(false);
 
     @Autowired
     public SnapshotStateRestorer(Consumer<String, SensorsSnapshotAvro> snapshotConsumer,
@@ -44,6 +50,8 @@ public class SnapshotStateRestorer {
 
     public int restorePublishedSnapshots() {
         String snapshotsTopic = properties.getTopics().getSnapshots();
+        cancelled.set(false);
+        consumerClosed.set(false);
         try (Consumer<String, SensorsSnapshotAvro> managedConsumer = snapshotConsumer) {
             List<TopicPartition> partitions = managedConsumer.partitionsFor(snapshotsTopic).stream()
                     .map(partitionInfo -> new TopicPartition(partitionInfo.topic(), partitionInfo.partition()))
@@ -64,10 +72,28 @@ public class SnapshotStateRestorer {
             int restoredSnapshots = 0;
             Instant deadline = clock.instant().plus(properties.getSnapshotRestoreTimeout());
             while (!isCaughtUp(managedConsumer, endOffsets)) {
+                if (cancelled.get()) {
+                    log.info("Snapshot bootstrap was cancelled before catch-up completed. topic={}, restoredSnapshots={}",
+                            snapshotsTopic, restoredSnapshots);
+                    return restoredSnapshots;
+                }
                 if (!clock.instant().isBefore(deadline)) {
                     throw restoreTimeout(snapshotsTopic, restoredSnapshots);
                 }
-                ConsumerRecords<String, SensorsSnapshotAvro> records = managedConsumer.poll(properties.getPollTimeout());
+                ConsumerRecords<String, SensorsSnapshotAvro> records;
+                try {
+                    records = managedConsumer.poll(properties.getPollTimeout());
+                } catch (RecordDeserializationException exception) {
+                    skipPoisonedRecord(managedConsumer, exception);
+                    continue;
+                } catch (WakeupException exception) {
+                    if (cancelled.get()) {
+                        log.info("Snapshot bootstrap interrupted by shutdown. topic={}, restoredSnapshots={}",
+                                snapshotsTopic, restoredSnapshots);
+                        return restoredSnapshots;
+                    }
+                    throw exception;
+                }
                 for (TopicPartition partition : records.partitions()) {
                     for (var record : records.records(partition)) {
                         if (record.value() == null) {
@@ -82,7 +108,36 @@ public class SnapshotStateRestorer {
             log.info("Restored published hub snapshots before sensor replay. topic={}, restoredSnapshots={}",
                     snapshotsTopic, restoredSnapshots);
             return restoredSnapshots;
+        } finally {
+            consumerClosed.set(true);
         }
+    }
+
+    public void cancelRestore() {
+        cancelled.set(true);
+        if (consumerClosed.get()) {
+            return;
+        }
+        try {
+            snapshotConsumer.wakeup();
+        } catch (IllegalStateException exception) {
+            log.debug("Snapshot restore consumer was already closed during shutdown", exception);
+        }
+    }
+
+    private void skipPoisonedRecord(Consumer<String, SensorsSnapshotAvro> consumer,
+                                    RecordDeserializationException exception) {
+        TopicPartition topicPartition = exception.topicPartition();
+        long nextOffset = exception.offset() + 1;
+        log.error(
+                "Skipping poisoned snapshot during bootstrap restore. topic={}, partition={}, offset={}",
+                topicPartition.topic(),
+                topicPartition.partition(),
+                exception.offset(),
+                exception
+        );
+        consumer.seek(topicPartition, nextOffset);
+        consumer.commitSync(Map.of(topicPartition, new OffsetAndMetadata(nextOffset)));
     }
 
     private IllegalStateException restoreTimeout(String topic, int restoredSnapshots) {

@@ -12,9 +12,9 @@ import java.util.List;
 
 @JsonTypeName("SCENARIO_ADDED")
 public record ScenarioAddedEvent(
-        @NotBlank String hubId,
+        @NotBlank @Size(max = 255) String hubId,
         Instant timestamp,
-        @NotBlank @Size(min = 3) String name,
+        @NotBlank @Size(min = 3, max = 255) String name,
         @Valid @NotEmpty List<ScenarioCondition> conditions,
         @Valid @NotEmpty List<DeviceAction> actions
 ) implements HubEvent {

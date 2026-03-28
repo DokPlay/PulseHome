@@ -14,6 +14,7 @@ aggregator:
     snapshot-restore-timeout: ${AGGREGATOR_KAFKA_SNAPSHOT_RESTORE_TIMEOUT:30s}
     topic-bootstrap-enabled: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
     topic-bootstrap-timeout: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
+    max-tracked-sensors-per-hub: ${AGGREGATOR_KAFKA_MAX_TRACKED_SENSORS_PER_HUB:10000}
     consumer:
       group-id: ${AGGREGATOR_KAFKA_GROUP_ID:aggregator}
       client-id: ${AGGREGATOR_KAFKA_CLIENT_ID:aggregator-client}

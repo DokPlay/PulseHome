@@ -9,6 +9,7 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 
 import java.time.Instant;
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -138,6 +139,71 @@ class SnapshotAggregationServiceTest {
         );
 
         assertThat(replayResult).isEmpty();
+    }
+
+    @Test
+    void shouldIgnoreEventWithoutTimestampToKeepReplayDeterministic() throws ReflectiveOperationException {
+        SensorEventAvro event = lightEvent(
+                "hub-1",
+                "sensor.light.1",
+                Instant.parse("2024-08-06T15:11:24.157Z"),
+                60
+        );
+        Field timestampField = SensorEventAvro.class.getDeclaredField("timestamp");
+        timestampField.setAccessible(true);
+        timestampField.set(event, null);
+
+        Optional<SensorsSnapshotAvro> snapshot = service.updateState(event);
+
+        assertThat(snapshot).isEmpty();
+    }
+
+    @Test
+    void shouldRestoreAllKnownSensorsAfterHubEviction() {
+        SnapshotAggregationService limitedService = new SnapshotAggregationService(2, 10);
+
+        limitedService.updateState(lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:24.157Z"), 60));
+        limitedService.updateState(motionEvent("hub-1", "sensor.motion.1", Instant.parse("2024-08-06T15:11:25.157Z"), true));
+        limitedService.updateState(lightEvent("hub-2", "sensor.light.2", Instant.parse("2024-08-06T15:11:26.157Z"), 61));
+        limitedService.updateState(lightEvent("hub-3", "sensor.light.3", Instant.parse("2024-08-06T15:11:27.157Z"), 62));
+
+        SensorsSnapshotAvro recreatedSnapshot = limitedService.updateState(
+                lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:28.157Z"), 63)
+        ).orElseThrow();
+
+        assertThat(recreatedSnapshot.getVersion()).isEqualTo(3);
+        assertThat(recreatedSnapshot.getSensorsState()).hasSize(2);
+        assertThat(recreatedSnapshot.getSensorsState()).containsKeys("sensor.light.1", "sensor.motion.1");
+        LightSensorAvro lightState = (LightSensorAvro) recreatedSnapshot.getSensorsState().get("sensor.light.1").getData();
+        MotionSensorAvro motionState = (MotionSensorAvro) recreatedSnapshot.getSensorsState().get("sensor.motion.1").getData();
+        assertThat(lightState.getLuminosity()).isEqualTo(63);
+        assertThat(motionState.getMotion()).isTrue();
+    }
+
+    @Test
+    void shouldRejectNewSensorWhenPerHubTrackingLimitIsReached() {
+        SnapshotAggregationService limitedService = new SnapshotAggregationService(10, 1);
+
+        limitedService.updateState(lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:24.157Z"), 60));
+        Optional<SensorsSnapshotAvro> snapshot = limitedService.updateState(
+                motionEvent("hub-1", "sensor.motion.1", Instant.parse("2024-08-06T15:11:25.157Z"), true)
+        );
+
+        assertThat(snapshot).isEmpty();
+    }
+
+    @Test
+    void shouldStillUpdateKnownSensorWhenPerHubTrackingLimitIsReached() {
+        SnapshotAggregationService limitedService = new SnapshotAggregationService(10, 1);
+
+        limitedService.updateState(lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:24.157Z"), 60));
+        SensorsSnapshotAvro snapshot = limitedService.updateState(
+                lightEvent("hub-1", "sensor.light.1", Instant.parse("2024-08-06T15:11:25.157Z"), 12)
+        ).orElseThrow();
+
+        assertThat(snapshot.getVersion()).isEqualTo(2);
+        LightSensorAvro state = (LightSensorAvro) snapshot.getSensorsState().get("sensor.light.1").getData();
+        assertThat(state.getLuminosity()).isEqualTo(12);
     }
 
     private SensorEventAvro motionEvent(String hubId, String sensorId, Instant timestamp, boolean motion) {

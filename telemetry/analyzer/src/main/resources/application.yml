@@ -49,7 +49,7 @@ analyzer:
 grpc:
   client:
     hub-router:
-      address: ${GRPC_HUB_ROUTER_ADDRESS}
+      address: ${GRPC_HUB_ROUTER_ADDRESS:static://localhost:59090}
       enableKeepAlive: true
       keepAliveWithoutCalls: true
-      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE}
+      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:plaintext}

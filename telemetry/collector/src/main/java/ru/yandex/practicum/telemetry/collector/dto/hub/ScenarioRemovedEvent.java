@@ -9,9 +9,9 @@ import java.time.Instant;
 
 @JsonTypeName("SCENARIO_REMOVED")
 public record ScenarioRemovedEvent(
-        @NotBlank String hubId,
+        @NotBlank @Size(max = 255) String hubId,
         Instant timestamp,
-        @NotBlank @Size(min = 3) String name
+        @NotBlank @Size(min = 3, max = 255) String name
 ) implements HubEvent {
 
     public ScenarioRemovedEvent {

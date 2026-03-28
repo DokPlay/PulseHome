@@ -15,13 +15,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HubEventProcessorTest {
 
@@ -96,6 +96,8 @@ class HubEventProcessorTest {
         doThrow(new IllegalStateException("poison pill"))
                 .when(hubConfigurationService)
                 .handleHubEvent(brokenEvent);
+        when(deadLetterPublisher.publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(true);
         when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
 
         HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService, deadLetterPublisher);
@@ -112,7 +114,7 @@ class HubEventProcessorTest {
     }
 
     @Test
-    void shouldStopProcessorWhenDlqPublishFails() {
+    void shouldFailFastWhenDlqPublishFails() {
         @SuppressWarnings("unchecked")
         Consumer<String, HubEventAvro> consumer = mock(Consumer.class);
         HubConfigurationService hubConfigurationService = mock(HubConfigurationService.class);
@@ -136,10 +138,9 @@ class HubEventProcessorTest {
         doThrow(new IllegalStateException("poison pill"))
                 .when(hubConfigurationService)
                 .handleHubEvent(brokenEvent);
-        doThrow(new HubEventDeadLetterPublishException("DLQ unavailable", new IllegalStateException("broker unavailable")))
-                .when(deadLetterPublisher)
-                .publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
-        when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records);
+        when(deadLetterPublisher.publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(false);
+        when(consumer.poll(properties.getHubsConsumer().getPollTimeout())).thenReturn(records).thenThrow(new WakeupException());
 
         HubEventProcessor processor = new HubEventProcessor(consumer, properties, hubConfigurationService, deadLetterPublisher);
 
@@ -151,7 +152,7 @@ class HubEventProcessorTest {
                 org.mockito.ArgumentMatchers.argThat(record -> record.offset() == 0L && brokenEvent.equals(record.value())),
                 org.mockito.ArgumentMatchers.any(IllegalStateException.class)
         );
-        verify(consumer, never()).commitSync(org.mockito.ArgumentMatchers.anyMap());
+        verify(consumer, never()).commitSync(Map.of(partition, new OffsetAndMetadata(1L)));
         verify(consumer).close();
     }
 }

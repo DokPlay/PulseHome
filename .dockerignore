@@ -4,6 +4,14 @@
 .idea
 .vscode
 .worktrees
+*.iml
+*.log
+.env
+.env.*
+!.env.example
+README.md
+README.ru.md
+compose.yml
 **/.DS_Store
 **/node_modules
 **/target

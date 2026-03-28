@@ -1,7 +1,6 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -24,29 +23,29 @@ public class HubEventDeadLetterPublisher {
 
     private final Producer<String, String> producer;
     private final AnalyzerKafkaProperties properties;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     public HubEventDeadLetterPublisher(@Qualifier("hubEventDlqProducer") Producer<String, String> producer,
                                        AnalyzerKafkaProperties properties) {
         this.producer = producer;
         this.properties = properties;
     }
 
-    public void publish(ConsumerRecord<String, HubEventAvro> record, Exception exception) {
+    public boolean publish(ConsumerRecord<String, HubEventAvro> record, Exception exception) {
         String topic = properties.getTopics().getHubsDlq();
         String key = record.key() != null ? record.key() : record.value().getHubId();
-        String payload = serialize(record, exception);
 
         try {
+            String payload = serialize(record, exception);
             producer.send(new ProducerRecord<>(topic, key, payload)).get();
+            return true;
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
-            throw publishFailure(topic, key, interruptedException);
+            logPublishFailure(topic, key, interruptedException);
         } catch (ExecutionException executionException) {
-            throw publishFailure(topic, key, executionException);
+            logPublishFailure(topic, key, executionException);
         } catch (RuntimeException runtimeException) {
-            throw publishFailure(topic, key, runtimeException);
+            logPublishFailure(topic, key, runtimeException);
         }
+        return false;
     }
 
     private String serialize(ConsumerRecord<String, HubEventAvro> record, Exception exception) {
@@ -63,19 +62,14 @@ public class HubEventDeadLetterPublisher {
                 Base64.getEncoder().encodeToString(AvroBinarySerializer.serialize(event))
         );
         try {
-            return objectMapper.writeValueAsString(message);
+            return DeadLetterJsonSupport.writeValueAsString(message);
         } catch (JsonProcessingException jsonProcessingException) {
             throw new HubEventDeadLetterPublishException("Failed to serialize hub event for DLQ", jsonProcessingException);
         }
     }
 
-    private HubEventDeadLetterPublishException publishFailure(String topic, String key, Exception exception) {
+    private void logPublishFailure(String topic, String key, Exception exception) {
         log.error("Failed to publish hub event to DLQ. topic={}, key={}", topic, key, exception);
-        return new HubEventDeadLetterPublishException(
-                "Failed to publish hub event to DLQ. topic=%s, key=%s, cause=%s"
-                        .formatted(topic, key, resolveMessage(exception)),
-                exception
-        );
     }
 
     private String resolveMessage(Exception exception) {

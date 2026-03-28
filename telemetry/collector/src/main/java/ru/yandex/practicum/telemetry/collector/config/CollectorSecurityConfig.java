@@ -20,8 +20,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class CollectorSecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   CollectorSecurityProperties securityProperties) throws Exception {
+        HttpSecurity configured = http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
@@ -29,8 +30,11 @@ public class CollectorSecurityConfig {
                         .requestMatchers("/events/**").hasRole("COLLECTOR")
                         .anyRequest().authenticated()
                 )
-                .httpBasic(Customizer.withDefaults())
-                .build();
+                .httpBasic(Customizer.withDefaults());
+        if (securityProperties.isRequireHttps()) {
+            configured.requiresChannel(channel -> channel.anyRequest().requiresSecure());
+        }
+        return configured.build();
     }
 
     @Bean
