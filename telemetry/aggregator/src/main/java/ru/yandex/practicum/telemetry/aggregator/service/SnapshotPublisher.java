@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
-import ru.yandex.practicum.telemetry.serialization.AvroBinarySerializer;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -19,10 +18,10 @@ public class SnapshotPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(SnapshotPublisher.class);
 
-    private final Producer<String, byte[]> producer;
+    private final Producer<String, SensorsSnapshotAvro> producer;
     private final AggregatorKafkaProperties properties;
 
-    public SnapshotPublisher(Producer<String, byte[]> producer,
+    public SnapshotPublisher(Producer<String, SensorsSnapshotAvro> producer,
                              AggregatorKafkaProperties properties) {
         this.producer = producer;
         this.properties = properties;
@@ -31,14 +30,13 @@ public class SnapshotPublisher {
     public PendingSnapshotPublish publish(SensorsSnapshotAvro snapshot) {
         String topic = properties.getTopics().getSnapshots();
         String key = snapshot.getHubId();
-        byte[] payload = AvroBinarySerializer.serialize(snapshot);
 
         try {
-            Future<RecordMetadata> publishFuture = producer.send(new ProducerRecord<>(topic, key, payload));
-            return new PendingSnapshotPublish(topic, key, payload.length, publishFuture);
+            Future<RecordMetadata> publishFuture = producer.send(new ProducerRecord<>(topic, key, snapshot));
+            return new PendingSnapshotPublish(topic, key, snapshot.getVersion(), publishFuture);
         } catch (RuntimeException exception) {
-            log.error("Snapshot publish failed before producer accepted the record. topic={}, key={}, payloadBytes={}",
-                    topic, key, payload.length, exception);
+            log.error("Snapshot publish failed before producer accepted the record. topic={}, key={}, version={}",
+                    topic, key, snapshot.getVersion(), exception);
             throw new SnapshotPublishException(buildFailureMessage("Failed to publish snapshot to Kafka", topic, key, exception), exception);
         }
     }
@@ -62,15 +60,15 @@ public class SnapshotPublisher {
             pendingPublish.publishFuture().get();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            log.warn("Snapshot publish interrupted. topic={}, key={}, payloadBytes={}",
-                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.payloadBytes(), exception);
+            log.warn("Snapshot publish interrupted. topic={}, key={}, version={}",
+                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.snapshotVersion(), exception);
             throw new SnapshotPublishException(
                     buildFailureMessage("Snapshot publish interrupted", pendingPublish.topic(), pendingPublish.key(), exception),
                     exception
             );
         } catch (ExecutionException exception) {
-            log.error("Snapshot publish failed. topic={}, key={}, payloadBytes={}",
-                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.payloadBytes(), exception);
+            log.error("Snapshot publish failed. topic={}, key={}, version={}",
+                    pendingPublish.topic(), pendingPublish.key(), pendingPublish.snapshotVersion(), exception);
             throw new SnapshotPublishException(
                     buildFailureMessage("Failed to publish snapshot to Kafka", pendingPublish.topic(), pendingPublish.key(), exception),
                     exception
@@ -100,7 +98,7 @@ public class SnapshotPublisher {
     public record PendingSnapshotPublish(
             String topic,
             String key,
-            int payloadBytes,
+            long snapshotVersion,
             Future<RecordMetadata> publishFuture
     ) {
     }

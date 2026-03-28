@@ -6,7 +6,6 @@ import ru.yandex.practicum.telemetry.analyzer.model.ActionSpec;
 import ru.yandex.practicum.telemetry.analyzer.repository.ActionDispatchRepository;
 
 import java.time.Instant;
-import java.util.Objects;
 
 @Service
 public class ActionDispatchTracker {
@@ -19,13 +18,13 @@ public class ActionDispatchTracker {
 
     @Transactional(readOnly = true)
     public boolean isAlreadyDispatched(String hubId, String scenarioName, long snapshotVersion, ActionSpec actionSpec) {
-        return actionDispatchRepository.existsByHubIdAndScenarioNameAndSnapshotVersionAndSensorIdAndActionTypeAndActionValue(
+        return actionDispatchRepository.existsDispatch(
                 hubId,
                 scenarioName,
                 snapshotVersion,
                 actionSpec.sensorId(),
                 actionSpec.type(),
-                normalizeActionValue(actionSpec)
+                actionSpec.value()
         );
     }
 
@@ -41,16 +40,12 @@ public class ActionDispatchTracker {
                 snapshotVersion,
                 actionSpec.sensorId(),
                 actionSpec.type().name(),
-                normalizeActionValue(actionSpec)
+                actionSpec.value()
         );
     }
 
     @Transactional
     public void pruneOlderSnapshots(String hubId, long snapshotVersion) {
         actionDispatchRepository.deleteByHubIdAndSnapshotVersionLessThan(hubId, snapshotVersion);
-    }
-
-    private Integer normalizeActionValue(ActionSpec actionSpec) {
-        return Objects.requireNonNullElse(actionSpec.value(), Integer.valueOf(0));
     }
 }

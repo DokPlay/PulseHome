@@ -8,8 +8,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.Hibernate;
 import ru.yandex.practicum.telemetry.analyzer.model.ConditionOperation;
 import ru.yandex.practicum.telemetry.analyzer.model.ConditionType;
+
+import java.util.Objects;
 
 @Entity
 @Table(name = "conditions")
@@ -65,5 +68,22 @@ public class Condition {
 
     public void setValue(Integer value) {
         this.value = value;
+    }
+
+    @Override
+    public final boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+        if (object == null || Hibernate.getClass(this) != Hibernate.getClass(object)) {
+            return false;
+        }
+        Condition other = (Condition) object;
+        return id != null && Objects.equals(id, other.id);
+    }
+
+    @Override
+    public final int hashCode() {
+        return Hibernate.getClass(this).hashCode();
     }
 }

@@ -78,6 +78,7 @@ class HubConfigurationServiceJpaTest {
         assertThat(scenarios.getFirst().conditions().getFirst().type()).isEqualTo(ConditionType.LUMINOSITY);
         assertThat(scenarios.getFirst().conditions().getFirst().operation()).isEqualTo(ConditionOperation.LOWER_THAN);
         assertThat(scenarios.getFirst().actions().getFirst().type()).isEqualTo(ActionType.ACTIVATE);
+        assertThat(scenarios.getFirst().actions().getFirst().value()).isEqualTo(1);
         assertThat(sensorRepository.findById("switch.1")).isPresent();
     }
 
@@ -118,6 +119,38 @@ class HubConfigurationServiceJpaTest {
 
         assertThat(sensorRepository.findById("sensor.motion.1")).isEmpty();
         assertThat(scenarios).isEmpty();
+    }
+
+    @Test
+    void shouldPreserveNullScenarioActionValue() {
+        hubConfigurationService.handleHubEvent(deviceAddedEvent("hub-1", "sensor.motion.1", DeviceTypeAvro.MOTION_SENSOR));
+        hubConfigurationService.handleHubEvent(HubEventAvro.newBuilder()
+                .setHubId("hub-1")
+                .setTimestamp(Instant.parse("2024-08-06T15:11:24.157Z"))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName("alarm")
+                        .setConditions(List.of(
+                                ScenarioConditionAvro.newBuilder()
+                                        .setSensorId("sensor.motion.1")
+                                        .setType(ConditionTypeAvro.MOTION)
+                                        .setOperation(ConditionOperationAvro.EQUALS)
+                                        .setValue(true)
+                                        .build()
+                        ))
+                        .setActions(List.of(
+                                DeviceActionAvro.newBuilder()
+                                        .setSensorId("sensor.motion.1")
+                                        .setType(ActionTypeAvro.INVERSE)
+                                        .build()
+                        ))
+                        .build())
+                .build());
+
+        List<ScenarioDefinition> scenarios = hubConfigurationService.getScenarios("hub-1");
+
+        assertThat(scenarios).hasSize(1);
+        assertThat(scenarios.getFirst().actions()).hasSize(1);
+        assertThat(scenarios.getFirst().actions().getFirst().value()).isNull();
     }
 
     private HubEventAvro deviceAddedEvent(String hubId, String sensorId, DeviceTypeAvro type) {

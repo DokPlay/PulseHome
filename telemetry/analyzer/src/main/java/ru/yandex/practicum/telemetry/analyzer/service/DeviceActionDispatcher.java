@@ -32,15 +32,18 @@ public class DeviceActionDispatcher {
     }
 
     public void dispatch(String hubId, String scenarioName, Instant timestamp, ActionSpec actionSpec) {
+        DeviceActionProto.Builder actionBuilder = DeviceActionProto.newBuilder()
+                .setSensorId(actionSpec.sensorId())
+                .setType(ContractEnumMapper.toActionTypeProto(actionSpec.type()));
+        if (actionSpec.value() != null) {
+            actionBuilder.setValue(actionSpec.value());
+        }
+
         DeviceActionRequest request = DeviceActionRequest.newBuilder()
                 .setHubId(hubId)
                 .setScenarioName(scenarioName)
                 .setTimestamp(toTimestamp(timestamp))
-                .setAction(DeviceActionProto.newBuilder()
-                        .setSensorId(actionSpec.sensorId())
-                        .setType(ContractEnumMapper.toActionTypeProto(actionSpec.type()))
-                        .setValue(normalizeGrpcActionValue(actionSpec))
-                        .build())
+                .setAction(actionBuilder.build())
                 .build();
 
         try {
@@ -71,10 +74,5 @@ public class DeviceActionDispatcher {
                 .setSeconds(instant.getEpochSecond())
                 .setNanos(instant.getNano())
                 .build();
-    }
-
-    private int normalizeGrpcActionValue(ActionSpec actionSpec) {
-        Integer value = actionSpec.value();
-        return value != null ? value.intValue() : 0;
     }
 }

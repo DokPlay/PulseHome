@@ -44,7 +44,33 @@ class DeviceActionDispatcherTest {
         assertThat(request.getAction().getSensorId()).isEqualTo("switch.1");
         assertThat(request.getAction().getType()).isEqualTo(ActionTypeProto.SET_VALUE);
         assertThat(request.getAction().getValue()).isEqualTo(23);
+        assertThat(request.getAction().hasValue()).isTrue();
         assertThat(request.getTimestamp().getSeconds()).isEqualTo(1722957084L);
+    }
+
+    @Test
+    void shouldOmitGrpcActionValueWhenAnalyzerActionValueIsNull() {
+        HubRouterControllerBlockingStub stub = mock(HubRouterControllerBlockingStub.class);
+        HubRouterControllerBlockingStub deadlineStub = mock(HubRouterControllerBlockingStub.class);
+        when(stub.withDeadlineAfter(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(java.util.concurrent.TimeUnit.MILLISECONDS)))
+                .thenReturn(deadlineStub);
+        when(deadlineStub.handleDeviceAction(org.mockito.ArgumentMatchers.any())).thenReturn(Empty.getDefaultInstance());
+
+        DeviceActionDispatcher dispatcher = new DeviceActionDispatcher(stub, new AnalyzerGrpcProperties());
+
+        dispatcher.dispatch(
+                "hub-1",
+                "warm-floor",
+                Instant.parse("2024-08-06T15:11:24.157Z"),
+                new ActionSpec("switch.1", ActionType.ACTIVATE, null)
+        );
+
+        ArgumentCaptor<DeviceActionRequest> requestCaptor = ArgumentCaptor.forClass(DeviceActionRequest.class);
+        verify(deadlineStub).handleDeviceAction(requestCaptor.capture());
+
+        DeviceActionRequest request = requestCaptor.getValue();
+        assertThat(request.getAction().hasValue()).isFalse();
+        assertThat(request.getAction().getValue()).isZero();
     }
 
     @Test

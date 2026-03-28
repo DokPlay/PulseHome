@@ -8,7 +8,6 @@ import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorStateAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.aggregator.config.AggregatorKafkaProperties;
-import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -26,8 +25,8 @@ import static org.mockito.Mockito.when;
 class SnapshotPublisherTest {
 
     @Test
-    void shouldPublishSnapshotAsAvroBinary() {
-        Producer<String, byte[]> producer = mockProducer();
+    void shouldPublishSnapshotRecord() {
+        Producer<String, SensorsSnapshotAvro> producer = mockProducer();
         SnapshotPublisher publisher = new SnapshotPublisher(producer, new AggregatorKafkaProperties());
         SensorsSnapshotAvro snapshot = snapshot();
 
@@ -35,24 +34,20 @@ class SnapshotPublisherTest {
         publisher.awaitPublications(List.of(pendingPublish));
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<ProducerRecord<String, byte[]>> recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
+        ArgumentCaptor<ProducerRecord<String, SensorsSnapshotAvro>> recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
         verify(producer).send(recordCaptor.capture());
 
-        ProducerRecord<String, byte[]> record = recordCaptor.getValue();
+        ProducerRecord<String, SensorsSnapshotAvro> record = recordCaptor.getValue();
         assertThat(record.topic()).isEqualTo("telemetry.snapshots.v1");
         assertThat(record.key()).isEqualTo("hub-1");
-
-        try (SensorsSnapshotDeserializer deserializer = new SensorsSnapshotDeserializer()) {
-            SensorsSnapshotAvro decoded = deserializer.deserialize(record.topic(), record.value());
-            assertThat(decoded.getHubId()).isEqualTo("hub-1");
-            assertThat(decoded.getSensorsState()).containsKey("sensor.light.1");
-        }
+        assertThat(record.value().getHubId()).isEqualTo("hub-1");
+        assertThat(record.value().getSensorsState()).containsKey("sensor.light.1");
     }
 
     @Test
     void shouldWrapRuntimeSendFailure() {
         @SuppressWarnings("unchecked")
-        Producer<String, byte[]> producer = mock(Producer.class);
+        Producer<String, SensorsSnapshotAvro> producer = mock(Producer.class);
         when(producer.send(any())).thenThrow(new IllegalStateException("producer closed"));
 
         SnapshotPublisher publisher = new SnapshotPublisher(producer, new AggregatorKafkaProperties());
@@ -67,7 +62,7 @@ class SnapshotPublisherTest {
     @Test
     void shouldWrapAsyncSendFailureWhenAwaitingPublication() {
         @SuppressWarnings("unchecked")
-        Producer<String, byte[]> producer = mock(Producer.class);
+        Producer<String, SensorsSnapshotAvro> producer = mock(Producer.class);
         when(producer.send(any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
 
         SnapshotPublisher publisher = new SnapshotPublisher(producer, new AggregatorKafkaProperties());
@@ -81,8 +76,8 @@ class SnapshotPublisherTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Producer<String, byte[]> mockProducer() {
-        Producer<String, byte[]> producer = mock(Producer.class);
+    private Producer<String, SensorsSnapshotAvro> mockProducer() {
+        Producer<String, SensorsSnapshotAvro> producer = mock(Producer.class);
         when(producer.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         return producer;
     }

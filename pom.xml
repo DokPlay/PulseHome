@@ -26,6 +26,7 @@
         <grpc.version>1.80.0</grpc.version>
         <grpc.spring.boot.version>3.1.0.RELEASE</grpc.spring.boot.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <!-- CVE fix: GHSA-72hv-8253-57qq (async parser DoS) - patched in 2.21.1+, no 2.19.x patch exists -->
         <jackson-bom.version>2.21.2</jackson-bom.version>
     </properties>
@@ -142,6 +143,11 @@
             <plugins>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
@@ -168,5 +174,34 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-vulnerable-upstream-lz4</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>org.lz4:lz4-java</exclude>
+                                    </excludes>
+                                    <message>
+                                        org.lz4:lz4-java on Maven Central is capped at 1.8.0 for this build.
+                                        Keep the explicit at.yawk.lz4:lz4-java runtime dependency until an upstream
+                                        fixed release is available and verified.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>
