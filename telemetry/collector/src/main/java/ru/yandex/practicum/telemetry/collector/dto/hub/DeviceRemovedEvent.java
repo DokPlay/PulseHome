@@ -1,22 +1,29 @@
 package ru.yandex.practicum.telemetry.collector.dto.hub;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.HubEventType;
 
-public class DeviceRemovedEvent extends HubEvent {
+import java.time.Instant;
 
-    @NotBlank
-    private String id;
+@JsonTypeName("DEVICE_REMOVED")
+public record DeviceRemovedEvent(
+        @NotBlank @Size(max = 255) String hubId,
+        Instant timestamp,
+        @NotBlank @Size(max = 255) String id
+) implements HubEvent {
 
-    public DeviceRemovedEvent() {
-        super(HubEventType.DEVICE_REMOVED);
+    public DeviceRemovedEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
+
+    @Override
+    public HubEventType type() {
+        return HubEventType.DEVICE_REMOVED;
     }
 
     public String getId() {
         return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 }

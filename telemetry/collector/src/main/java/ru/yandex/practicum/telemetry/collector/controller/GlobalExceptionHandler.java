@@ -9,12 +9,13 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.yandex.practicum.telemetry.collector.exception.ClientInputException;
-import ru.yandex.practicum.telemetry.collector.service.EventPublishException;
+import ru.yandex.practicum.telemetry.collector.exception.EventPublishException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String EVENT_PUBLISH_FAILURE_MESSAGE = "Telemetry ingestion is temporarily unavailable";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
@@ -38,8 +39,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EventPublishException.class)
     public ResponseEntity<ApiErrorResponse> handlePublishFailure(EventPublishException exception) {
+        log.warn("Collector failed to publish event", exception);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new ApiErrorResponse(exception.getMessage()));
+                .body(new ApiErrorResponse(EVENT_PUBLISH_FAILURE_MESSAGE));
     }
 
     @ExceptionHandler(Exception.class)

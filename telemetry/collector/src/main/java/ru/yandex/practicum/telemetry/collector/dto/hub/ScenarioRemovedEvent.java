@@ -1,24 +1,29 @@
 package ru.yandex.practicum.telemetry.collector.dto.hub;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.HubEventType;
 
-public class ScenarioRemovedEvent extends HubEvent {
+import java.time.Instant;
 
-    @NotBlank
-    @Size(min = 3)
-    private String name;
+@JsonTypeName("SCENARIO_REMOVED")
+public record ScenarioRemovedEvent(
+        @NotBlank @Size(max = 255) String hubId,
+        Instant timestamp,
+        @NotBlank @Size(min = 3, max = 255) String name
+) implements HubEvent {
 
-    public ScenarioRemovedEvent() {
-        super(HubEventType.SCENARIO_REMOVED);
+    public ScenarioRemovedEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
+
+    @Override
+    public HubEventType type() {
+        return HubEventType.SCENARIO_REMOVED;
     }
 
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 }

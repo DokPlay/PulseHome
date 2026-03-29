@@ -2,17 +2,15 @@ package ru.yandex.practicum.telemetry.collector.dto.hub;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.HubEventType;
 
 import java.time.Instant;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.EXISTING_PROPERTY,
-        property = "type",
-        visible = true
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "type"
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = DeviceAddedEvent.class, name = "DEVICE_ADDED"),
@@ -20,44 +18,24 @@ import java.time.Instant;
         @JsonSubTypes.Type(value = ScenarioAddedEvent.class, name = "SCENARIO_ADDED"),
         @JsonSubTypes.Type(value = ScenarioRemovedEvent.class, name = "SCENARIO_REMOVED")
 })
-public abstract class HubEvent {
+public sealed interface HubEvent permits DeviceAddedEvent, DeviceRemovedEvent, ScenarioAddedEvent, ScenarioRemovedEvent {
 
-    @NotBlank
-    private String hubId;
+    @Size(max = 255)
+    String hubId();
 
-    private Instant timestamp = Instant.now();
+    Instant timestamp();
 
-    @NotNull
-    private HubEventType type;
+    HubEventType type();
 
-    protected HubEvent() {
+    default String getHubId() {
+        return hubId();
     }
 
-    protected HubEvent(HubEventType type) {
-        this.type = type;
+    default Instant getTimestamp() {
+        return timestamp();
     }
 
-    public String getHubId() {
-        return hubId;
-    }
-
-    public void setHubId(String hubId) {
-        this.hubId = hubId;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public HubEventType getType() {
-        return type;
-    }
-
-    public void setType(HubEventType type) {
-        this.type = type;
+    default HubEventType getType() {
+        return type();
     }
 }

@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: analyzer
+  profiles:
+    default: dev
+  main:
+    web-application-type: none
+  datasource:
+    url: ${ANALYZER_DATASOURCE_URL}
+    username: ${ANALYZER_DATASOURCE_USERNAME}
+    password: ${ANALYZER_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+analyzer:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    topic-bootstrap-enabled: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
+    topic-bootstrap-timeout: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
+    topics:
+      hubs: ${ANALYZER_KAFKA_HUBS_TOPIC:telemetry.hubs.v1}
+      hubs-dlq: ${ANALYZER_KAFKA_HUBS_DLQ_TOPIC:telemetry.hubs.dlq.v1}
+      snapshots: ${ANALYZER_KAFKA_SNAPSHOTS_TOPIC:telemetry.snapshots.v1}
+      snapshots-dlq: ${ANALYZER_KAFKA_SNAPSHOTS_DLQ_TOPIC:telemetry.snapshots.dlq.v1}
+    hubs-consumer:
+      group-id: ${ANALYZER_KAFKA_HUBS_GROUP_ID:analyzer-hubs}
+      client-id-prefix: ${ANALYZER_KAFKA_HUBS_CLIENT_ID_PREFIX:analyzer-hubs}
+      poll-timeout: ${ANALYZER_KAFKA_HUBS_POLL_TIMEOUT:1s}
+      max-poll-records: ${ANALYZER_KAFKA_HUBS_MAX_POLL_RECORDS:50}
+      max-poll-interval-ms: ${ANALYZER_KAFKA_HUBS_MAX_POLL_INTERVAL_MS:300000}
+      auto-offset-reset: ${ANALYZER_KAFKA_HUBS_AUTO_OFFSET_RESET:earliest}
+    snapshots-consumer:
+      group-id: ${ANALYZER_KAFKA_SNAPSHOTS_GROUP_ID:analyzer-snapshots}
+      client-id-prefix: ${ANALYZER_KAFKA_SNAPSHOTS_CLIENT_ID_PREFIX:analyzer-snapshots}
+      poll-timeout: ${ANALYZER_KAFKA_SNAPSHOTS_POLL_TIMEOUT:1s}
+      max-poll-records: ${ANALYZER_KAFKA_SNAPSHOTS_MAX_POLL_RECORDS:100}
+      max-poll-interval-ms: ${ANALYZER_KAFKA_SNAPSHOTS_MAX_POLL_INTERVAL_MS:300000}
+      auto-offset-reset: ${ANALYZER_KAFKA_SNAPSHOTS_AUTO_OFFSET_RESET:earliest}
+  grpc:
+    hub-router:
+      action-timeout: 3s
+
+grpc:
+  client:
+    hub-router:
+      address: ${GRPC_HUB_ROUTER_ADDRESS:static://localhost:59090}
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:plaintext}

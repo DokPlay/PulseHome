@@ -2,17 +2,15 @@ package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
 import java.time.Instant;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.EXISTING_PROPERTY,
-        property = "type",
-        visible = true
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "type"
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = ClimateSensorEvent.class, name = "CLIMATE_SENSOR_EVENT"),
@@ -21,55 +19,31 @@ import java.time.Instant;
         @JsonSubTypes.Type(value = SwitchSensorEvent.class, name = "SWITCH_SENSOR_EVENT"),
         @JsonSubTypes.Type(value = TemperatureSensorEvent.class, name = "TEMPERATURE_SENSOR_EVENT")
 })
-public abstract class SensorEvent {
+public sealed interface SensorEvent permits ClimateSensorEvent, LightSensorEvent, MotionSensorEvent, SwitchSensorEvent, TemperatureSensorEvent {
 
-    @NotBlank
-    private String id;
+    @Size(max = 255)
+    String id();
 
-    @NotBlank
-    private String hubId;
+    @Size(max = 255)
+    String hubId();
 
-    private Instant timestamp = Instant.now();
+    Instant timestamp();
 
-    @NotNull
-    private SensorEventType type;
+    SensorEventType type();
 
-    protected SensorEvent() {
+    default String getId() {
+        return id();
     }
 
-    protected SensorEvent(SensorEventType type) {
-        this.type = type;
+    default String getHubId() {
+        return hubId();
     }
 
-    public String getId() {
-        return id;
+    default Instant getTimestamp() {
+        return timestamp();
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getHubId() {
-        return hubId;
-    }
-
-    public void setHubId(String hubId) {
-        this.hubId = hubId;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public SensorEventType getType() {
-        return type;
-    }
-
-    public void setType(SensorEventType type) {
-        this.type = type;
+    default SensorEventType getType() {
+        return type();
     }
 }

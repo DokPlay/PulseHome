@@ -1,0 +1,12 @@
+collector:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  security:
+    username: ${COLLECTOR_BASIC_AUTH_USERNAME:collector}
+    password: ${COLLECTOR_BASIC_AUTH_PASSWORD}
+    require-https: false
+
+management:
+  endpoint:
+    health:
+      show-details: always

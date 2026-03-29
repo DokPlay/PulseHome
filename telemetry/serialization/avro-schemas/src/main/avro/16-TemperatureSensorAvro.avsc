@@ -2,17 +2,20 @@
   "type": "record",
   "name": "TemperatureSensorAvro",
   "namespace": "ru.yandex.practicum.kafka.telemetry.event",
+  "doc": "Legacy temperature payload retained only for backward compatibility with previously published events. New producers should use TemperatureSensorPayloadAvro.",
   "fields": [
-    { "name": "id", "type": "string" },
-    { "name": "hubId", "type": "string" },
+    { "name": "id", "type": "string", "doc": "Sensor identifier shared with the envelope record.", "default": "" },
+    { "name": "hubId", "type": "string", "doc": "Hub identifier shared with the envelope record.", "default": "" },
     {
       "name": "timestamp",
+      "doc": "Event timestamp shared with the envelope record.",
       "type": {
         "type": "long",
         "logicalType": "timestamp-millis"
-      }
+      },
+      "default": 0
     },
-    { "name": "temperature_c", "type": "int" },
-    { "name": "temperature_f", "type": "int" }
+    { "name": "temperature_c", "type": "int", "doc": "Temperature in degrees Celsius.", "default": 0 },
+    { "name": "temperature_f", "type": "int", "doc": "Temperature in degrees Fahrenheit.", "default": 0 }
   ]
 }

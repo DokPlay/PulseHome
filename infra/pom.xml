@@ -13,4 +13,8 @@
     <artifactId>infra</artifactId>
     <packaging>pom</packaging>
     <name>infra</name>
+
+    <modules>
+        <module>hub-router-stub</module>
+    </modules>
 </project>

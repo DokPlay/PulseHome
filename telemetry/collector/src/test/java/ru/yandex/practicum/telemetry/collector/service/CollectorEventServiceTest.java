@@ -1,12 +1,11 @@
 package ru.yandex.practicum.telemetry.collector.service;
 
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
@@ -14,22 +13,23 @@ import ru.yandex.practicum.telemetry.collector.config.CollectorKafkaProperties;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ActionType;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionOperation;
 import ru.yandex.practicum.telemetry.collector.dto.enums.ConditionType;
-import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 import ru.yandex.practicum.telemetry.collector.dto.hub.DeviceAction;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioAddedEvent;
 import ru.yandex.practicum.telemetry.collector.dto.hub.ScenarioCondition;
+import ru.yandex.practicum.telemetry.collector.exception.EventPublishException;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.MotionSensorEvent;
 import ru.yandex.practicum.telemetry.collector.exception.InvalidScenarioConditionValueException;
 import ru.yandex.practicum.telemetry.collector.mapper.HubEventAvroMapper;
 import ru.yandex.practicum.telemetry.collector.mapper.SensorEventAvroMapper;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -39,58 +39,47 @@ import static org.mockito.Mockito.when;
 
 class CollectorEventServiceTest {
 
-    private KafkaTemplate<String, byte[]> kafkaTemplate;
+    private KafkaTemplate<String, SpecificRecordBase> kafkaTemplate;
     private CollectorEventService service;
 
     @BeforeEach
     void setUp() {
-        kafkaTemplate = mock(KafkaTemplate.class);
-        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        kafkaTemplate = mockKafkaTemplate();
+        stubSendResult(kafkaTemplate, CompletableFuture.completedFuture(null));
 
         CollectorKafkaProperties properties = new CollectorKafkaProperties();
         service = new CollectorEventService(
                 kafkaTemplate,
                 properties,
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
     }
 
     @Test
-    void shouldPublishSensorEventAsAvroBinary() throws IOException {
-        MotionSensorEvent event = new MotionSensorEvent();
-        event.setId("sensor.motion.1");
-        event.setHubId("hub-1");
-        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
-        event.setLinkQuality(87);
-        event.setMotion(true);
-        event.setVoltage(220);
+    void shouldPublishSensorEventAsAvroRecord() {
+        MotionSensorEvent event = new MotionSensorEvent("sensor.motion.1", "hub-1", null, 87, true, 220);
 
-        service.collectSensorEvent(event);
+        service.collectSensorEvent(event).join();
 
-        ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+        ArgumentCaptor<SpecificRecordBase> payloadCaptor = ArgumentCaptor.forClass(SpecificRecordBase.class);
+        verifySendCaptured(kafkaTemplate, payloadCaptor);
 
-        SensorEventAvro avroEvent = decode(payloadCaptor.getValue(), new SpecificDatumReader<>(SensorEventAvro.getClassSchema()));
+        SensorEventAvro avroEvent = (SensorEventAvro) payloadCaptor.getValue();
         assertThat(avroEvent.getId()).isEqualTo("sensor.motion.1");
         assertThat(avroEvent.getHubId()).isEqualTo("hub-1");
     }
 
     @Test
-    void shouldPublishHubEventAsAvroBinary() throws IOException {
-        ScenarioAddedEvent event = new ScenarioAddedEvent();
-        event.setHubId("hub-3");
-        event.setName("Night light");
-        event.setConditions(List.of(condition()));
-        event.setActions(List.of(action()));
+    void shouldPublishHubEventAsAvroRecord() {
+        ScenarioAddedEvent event = new ScenarioAddedEvent("hub-3", null, "Night light", List.of(condition()), List.of(action()));
 
-        service.collectHubEvent(event);
+        service.collectHubEvent(event).join();
 
-        ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+        ArgumentCaptor<SpecificRecordBase> payloadCaptor = ArgumentCaptor.forClass(SpecificRecordBase.class);
+        verifySendCaptured(kafkaTemplate, payloadCaptor);
 
-        HubEventAvro avroEvent = decode(payloadCaptor.getValue(), new SpecificDatumReader<>(HubEventAvro.getClassSchema()));
+        HubEventAvro avroEvent = (HubEventAvro) payloadCaptor.getValue();
         assertThat(avroEvent.getHubId()).isEqualTo("hub-3");
         assertThat(avroEvent.getPayload()).isInstanceOf(ScenarioAddedEventAvro.class);
         ScenarioAddedEventAvro payload = (ScenarioAddedEventAvro) avroEvent.getPayload();
@@ -100,28 +89,24 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldIncludeTopicAndKeyInPublishFailureMessage() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        CompletableFuture<org.springframework.kafka.support.SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
+        KafkaTemplate<String, SpecificRecordBase> failingKafkaTemplate = mockKafkaTemplate();
+        CompletableFuture<SendResult<String, SpecificRecordBase>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new TimeoutException("broker did not acknowledge"));
-        when(failingKafkaTemplate.send(anyString(), anyString(), any())).thenReturn(failedFuture);
+        stubSendResult(failingKafkaTemplate, failedFuture);
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
-        MotionSensorEvent event = new MotionSensorEvent();
-        event.setId("sensor.motion.1");
-        event.setHubId("hub-9");
-        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
-        event.setLinkQuality(87);
-        event.setMotion(true);
-        event.setVoltage(220);
+        MotionSensorEvent event = new MotionSensorEvent("sensor.motion.1", "hub-9", null, 87, true, 220);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("topic=telemetry.sensors.v1")
                 .hasMessageContaining("key=hub-9");
@@ -129,55 +114,46 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldFallbackToExceptionTypeWhenPublishFailureCauseMessageIsMissing() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        CompletableFuture<org.springframework.kafka.support.SendResult<String, byte[]>> failedFuture = new CompletableFuture<>();
+        KafkaTemplate<String, SpecificRecordBase> failingKafkaTemplate = mockKafkaTemplate();
+        CompletableFuture<SendResult<String, SpecificRecordBase>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new TimeoutException());
-        when(failingKafkaTemplate.send(anyString(), anyString(), any())).thenReturn(failedFuture);
+        stubSendResult(failingKafkaTemplate, failedFuture);
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
-        MotionSensorEvent event = new MotionSensorEvent();
-        event.setId("sensor.motion.2");
-        event.setHubId("hub-10");
-        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
-        event.setLinkQuality(90);
-        event.setMotion(true);
-        event.setVoltage(230);
+        MotionSensorEvent event = new MotionSensorEvent("sensor.motion.2", "hub-10", null, 90, true, 230);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("cause=TimeoutException");
     }
 
     @Test
     void shouldWrapRuntimeFailureThrownByKafkaSend() {
-        KafkaTemplate<String, byte[]> failingKafkaTemplate = mock(KafkaTemplate.class);
-        when(failingKafkaTemplate.send(anyString(), anyString(), any()))
-                .thenThrow(new IllegalStateException("producer factory is not initialized"));
+        KafkaTemplate<String, SpecificRecordBase> failingKafkaTemplate = mockKafkaTemplate();
+        stubSendFailure(failingKafkaTemplate, new IllegalStateException("producer factory is not initialized"));
 
         CollectorEventService failingService = new CollectorEventService(
                 failingKafkaTemplate,
                 new CollectorKafkaProperties(),
                 new SensorEventAvroMapper(),
-                new HubEventAvroMapper(),
-                new AvroBinarySerializer()
+                new HubEventAvroMapper()
         );
 
-        MotionSensorEvent event = new MotionSensorEvent();
-        event.setId("sensor.motion.3");
-        event.setHubId("hub-11");
-        event.setType(SensorEventType.MOTION_SENSOR_EVENT);
-        event.setLinkQuality(91);
-        event.setMotion(true);
-        event.setVoltage(231);
+        MotionSensorEvent event = new MotionSensorEvent("sensor.motion.3", "hub-11", null, 91, true, 231);
 
-        assertThatThrownBy(() -> failingService.collectSensorEvent(event))
+        Throwable failure = catchThrowable(() -> failingService.collectSensorEvent(event).join());
+
+        assertThat(failure).isInstanceOf(CompletionException.class);
+        assertThat(failure.getCause())
                 .isInstanceOf(EventPublishException.class)
                 .hasMessageContaining("topic=telemetry.sensors.v1")
                 .hasMessageContaining("key=hub-11")
@@ -186,46 +162,51 @@ class CollectorEventServiceTest {
 
     @Test
     void shouldFailFastOnInvalidBooleanLikeConditionValue() {
-        ScenarioAddedEvent event = new ScenarioAddedEvent();
-        event.setHubId("hub-3");
-        event.setName("Broken scenario");
-        event.setConditions(List.of(invalidCondition()));
-        event.setActions(List.of(action()));
+        ScenarioAddedEvent event = new ScenarioAddedEvent("hub-3", null, "Broken scenario", List.of(invalidCondition()), List.of(action()));
 
-        assertThatThrownBy(() -> service.collectHubEvent(event))
+        assertThatThrownBy(() -> service.collectHubEvent(event).join())
                 .isInstanceOf(InvalidScenarioConditionValueException.class)
                 .hasMessageContaining("0 or 1");
 
+        verifySendNeverCalled(kafkaTemplate);
+    }
+
+    @SuppressWarnings("unchecked")
+    private KafkaTemplate<String, SpecificRecordBase> mockKafkaTemplate() {
+        return (KafkaTemplate<String, SpecificRecordBase>) mock(KafkaTemplate.class);
+    }
+
+    @SuppressWarnings("null")
+    private void stubSendResult(KafkaTemplate<String, SpecificRecordBase> kafkaTemplate,
+                                CompletableFuture<SendResult<String, SpecificRecordBase>> sendFuture) {
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(sendFuture);
+    }
+
+    @SuppressWarnings("null")
+    private void stubSendFailure(KafkaTemplate<String, SpecificRecordBase> kafkaTemplate, RuntimeException exception) {
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenThrow(exception);
+    }
+
+    @SuppressWarnings("null")
+    private void verifySendCaptured(KafkaTemplate<String, SpecificRecordBase> kafkaTemplate,
+                                    ArgumentCaptor<SpecificRecordBase> payloadCaptor) {
+        verify(kafkaTemplate).send(anyString(), anyString(), payloadCaptor.capture());
+    }
+
+    @SuppressWarnings("null")
+    private void verifySendNeverCalled(KafkaTemplate<String, SpecificRecordBase> kafkaTemplate) {
         verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
     }
 
-    private <T> T decode(byte[] payload, SpecificDatumReader<T> reader) throws IOException {
-        BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(payload, null);
-        return reader.read(null, decoder);
-    }
-
     private ScenarioCondition condition() {
-        ScenarioCondition condition = new ScenarioCondition();
-        condition.setSensorId("sensor.motion.1");
-        condition.setType(ConditionType.MOTION);
-        condition.setOperation(ConditionOperation.EQUALS);
-        condition.setValue(1);
-        return condition;
+        return new ScenarioCondition("sensor.motion.1", ConditionType.MOTION, ConditionOperation.EQUALS, 1);
     }
 
     private DeviceAction action() {
-        DeviceAction action = new DeviceAction();
-        action.setSensorId("sensor.switch.1");
-        action.setType(ActionType.ACTIVATE);
-        return action;
+        return new DeviceAction("sensor.switch.1", ActionType.ACTIVATE, null);
     }
 
     private ScenarioCondition invalidCondition() {
-        ScenarioCondition condition = new ScenarioCondition();
-        condition.setSensorId("sensor.switch.1");
-        condition.setType(ConditionType.SWITCH);
-        condition.setOperation(ConditionOperation.EQUALS);
-        condition.setValue(2);
-        return condition;
+        return new ScenarioCondition("sensor.switch.1", ConditionType.SWITCH, ConditionOperation.EQUALS, 2);
     }
 }

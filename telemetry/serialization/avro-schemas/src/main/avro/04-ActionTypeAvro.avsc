@@ -7,5 +7,6 @@
     "DEACTIVATE",
     "INVERSE",
     "SET_VALUE"
-  ]
+  ],
+  "default": "ACTIVATE"
 }

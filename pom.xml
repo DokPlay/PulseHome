@@ -14,19 +14,33 @@
     <modules>
         <module>telemetry</module>
         <module>infra</module>
-        <module>commerce</module>
     </modules>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <spring-boot.version>3.3.5</spring-boot.version>
-        <avro.version>1.11.5</avro.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-boot.version>3.5.13</spring-boot.version>
+        <avro.version>1.12.1</avro.version>
+        <protobuf.version>3.25.8</protobuf.version>
+        <grpc.version>1.80.0</grpc.version>
+        <grpc.spring.boot.version>3.1.0.RELEASE</grpc.spring.boot.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <!-- CVE fix: GHSA-72hv-8253-57qq (async parser DoS) - patched in 2.21.1+, no 2.19.x patch exists -->
+        <jackson-bom.version>2.21.2</jackson-bom.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -34,12 +48,99 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- CVE-2025-48734: commons-beanutils Improper Access Control -->
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.11.0</version>
+            </dependency>
+            <!-- CVE-2025-48924: commons-lang3 uncontrolled recursion / StackOverflowError DoS -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.18.0</version>
+            </dependency>
+            <!-- CVE-2025-12183, CVE-2025-66566: lz4-java out-of-bounds / info leak - patched in 1.10.1
+                 kafka-clients and transitive kafka deps use org.lz4:lz4-java (max 1.8.1, still vulnerable).
+                 Replace with at.yawk.lz4:lz4-java (same classes, CVE fix in 1.10.1+). -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>3.9.1</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.kafka</groupId>
+                <artifactId>spring-kafka-test</artifactId>
+                <version>3.3.10</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.10.1</version>
+            </dependency>
+            <!-- CVE-2026-24308, CVE-2026-24281: ZooKeeper config exposure / hostname bypass -->
+            <dependency>
+                <groupId>org.apache.zookeeper</groupId>
+                <artifactId>zookeeper</artifactId>
+                <version>3.8.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.zookeeper</groupId>
+                <artifactId>zookeeper-jute</artifactId>
+                <version>3.8.6</version>
+            </dependency>
+            <!-- CVE-2025-55752 + 5 others: Tomcat path traversal / bypass vulnerabilities -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>10.1.52</version>
+            </dependency>
+            <!-- CVE-2025-55163: grpc-netty-shaded MadeYouReset HTTP/2 DDoS - patched in 1.75.0+ -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -62,8 +163,64 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <argLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading</argLine>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.eclipse.m2e</groupId>
+                    <artifactId>lifecycle-mapping</artifactId>
+                    <version>1.0.0</version>
+                    <configuration>
+                        <lifecycleMappingMetadata>
+                            <pluginExecutions>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>org.apache.maven.plugins</groupId>
+                                        <artifactId>maven-clean-plugin</artifactId>
+                                        <versionRange>[3.4.0,)</versionRange>
+                                        <goals>
+                                            <goal>clean</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <ignore/>
+                                    </action>
+                                </pluginExecution>
+                            </pluginExecutions>
+                        </lifecycleMappingMetadata>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-vulnerable-upstream-lz4</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>org.lz4:lz4-java</exclude>
+                                    </excludes>
+                                    <message>
+                                        org.lz4:lz4-java on Maven Central is capped at 1.8.0 for this build.
+                                        Keep the explicit at.yawk.lz4:lz4-java runtime dependency until an upstream
+                                        fixed release is available and verified.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

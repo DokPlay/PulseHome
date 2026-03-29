@@ -1,33 +1,40 @@
 package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
-public class TemperatureSensorEvent extends SensorEvent {
+import java.time.Instant;
 
-    @NotNull
-    private Integer temperatureC;
+@JsonTypeName("TEMPERATURE_SENSOR_EVENT")
+/**
+ * Structural validation lives here; physical temperature bounds should be added only after
+ * product signs off the valid operating range for the production sensor fleet.
+ */
+public record TemperatureSensorEvent(
+        @NotBlank @Size(max = 255) String id,
+        @NotBlank @Size(max = 255) String hubId,
+        Instant timestamp,
+        @NotNull Integer temperatureC,
+        @NotNull Integer temperatureF
+) implements SensorEvent {
 
-    @NotNull
-    private Integer temperatureF;
+    public TemperatureSensorEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
 
-    public TemperatureSensorEvent() {
-        super(SensorEventType.TEMPERATURE_SENSOR_EVENT);
+    @Override
+    public SensorEventType type() {
+        return SensorEventType.TEMPERATURE_SENSOR_EVENT;
     }
 
     public Integer getTemperatureC() {
         return temperatureC;
     }
 
-    public void setTemperatureC(Integer temperatureC) {
-        this.temperatureC = temperatureC;
-    }
-
     public Integer getTemperatureF() {
         return temperatureF;
-    }
-
-    public void setTemperatureF(Integer temperatureF) {
-        this.temperatureF = temperatureF;
     }
 }

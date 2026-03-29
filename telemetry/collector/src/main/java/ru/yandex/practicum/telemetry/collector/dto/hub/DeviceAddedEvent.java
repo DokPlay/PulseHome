@@ -1,35 +1,36 @@
 package ru.yandex.practicum.telemetry.collector.dto.hub;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.DeviceType;
 import ru.yandex.practicum.telemetry.collector.dto.enums.HubEventType;
 
-public class DeviceAddedEvent extends HubEvent {
+import java.time.Instant;
 
-    @NotBlank
-    private String id;
+@JsonTypeName("DEVICE_ADDED")
+public record DeviceAddedEvent(
+        @NotBlank @Size(max = 255) String hubId,
+        Instant timestamp,
+        @NotBlank @Size(max = 255) String id,
+        @NotNull DeviceType deviceType
+) implements HubEvent {
 
-    @NotNull
-    private DeviceType deviceType;
+    public DeviceAddedEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
 
-    public DeviceAddedEvent() {
-        super(HubEventType.DEVICE_ADDED);
+    @Override
+    public HubEventType type() {
+        return HubEventType.DEVICE_ADDED;
     }
 
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
     public DeviceType getDeviceType() {
         return deviceType;
-    }
-
-    public void setDeviceType(DeviceType deviceType) {
-        this.deviceType = deviceType;
     }
 }

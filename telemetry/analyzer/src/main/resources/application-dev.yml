@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: ${ANALYZER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/analyzer}
+    username: ${ANALYZER_DATASOURCE_USERNAME}
+    password: ${ANALYZER_DATASOURCE_PASSWORD}
+
+analyzer:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+grpc:
+  client:
+    hub-router:
+      address: static://localhost:59090
+      negotiationType: plaintext

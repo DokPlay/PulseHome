@@ -10,6 +10,8 @@ import ru.yandex.practicum.telemetry.collector.dto.hub.HubEvent;
 import ru.yandex.practicum.telemetry.collector.dto.sensor.SensorEvent;
 import ru.yandex.practicum.telemetry.collector.service.CollectorEventService;
 
+import java.util.concurrent.CompletableFuture;
+
 @RestController
 @RequestMapping("/events")
 public class EventController {
@@ -21,14 +23,14 @@ public class EventController {
     }
 
     @PostMapping("/sensors")
-    public ResponseEntity<Void> collectSensorEvent(@Valid @RequestBody SensorEvent event) {
-        collectorEventService.collectSensorEvent(event);
-        return ResponseEntity.ok().build();
+    public CompletableFuture<ResponseEntity<Void>> collectSensorEvent(@Valid @RequestBody SensorEvent event) {
+        return collectorEventService.collectSensorEvent(event)
+                .thenApply(ignored -> ResponseEntity.ok().build());
     }
 
     @PostMapping("/hubs")
-    public ResponseEntity<Void> collectHubEvent(@Valid @RequestBody HubEvent event) {
-        collectorEventService.collectHubEvent(event);
-        return ResponseEntity.ok().build();
+    public CompletableFuture<ResponseEntity<Void>> collectHubEvent(@Valid @RequestBody HubEvent event) {
+        return collectorEventService.collectHubEvent(event)
+                .thenApply(ignored -> ResponseEntity.ok().build());
     }
 }

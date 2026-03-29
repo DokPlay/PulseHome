@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: aggregator
+  profiles:
+    default: dev
+  main:
+    web-application-type: none
+
+aggregator:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    poll-timeout: ${AGGREGATOR_KAFKA_POLL_TIMEOUT:1s}
+    send-timeout: ${AGGREGATOR_KAFKA_SEND_TIMEOUT:10s}
+    snapshot-restore-timeout: ${AGGREGATOR_KAFKA_SNAPSHOT_RESTORE_TIMEOUT:30s}
+    topic-bootstrap-enabled: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
+    topic-bootstrap-timeout: ${AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
+    max-tracked-sensors-per-hub: ${AGGREGATOR_KAFKA_MAX_TRACKED_SENSORS_PER_HUB:10000}
+    consumer:
+      group-id: ${AGGREGATOR_KAFKA_GROUP_ID:aggregator}
+      client-id: ${AGGREGATOR_KAFKA_CLIENT_ID:aggregator-client}
+      auto-offset-reset: ${AGGREGATOR_KAFKA_AUTO_OFFSET_RESET:earliest}
+      max-poll-records: ${AGGREGATOR_KAFKA_MAX_POLL_RECORDS:500}
+    producer:
+      acks: ${AGGREGATOR_KAFKA_ACKS:all}
+      enable-idempotence: ${AGGREGATOR_KAFKA_ENABLE_IDEMPOTENCE:true}
+      compression-type: ${AGGREGATOR_KAFKA_COMPRESSION_TYPE:snappy}
+      linger-ms: ${AGGREGATOR_KAFKA_LINGER_MS:5}
+      batch-size: ${AGGREGATOR_KAFKA_BATCH_SIZE:32768}
+      max-in-flight-requests-per-connection: ${AGGREGATOR_KAFKA_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION:5}
+    topics:
+      sensors: ${AGGREGATOR_KAFKA_SENSORS_TOPIC:telemetry.sensors.v1}
+      snapshots: ${AGGREGATOR_KAFKA_SNAPSHOTS_TOPIC:telemetry.snapshots.v1}

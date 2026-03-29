@@ -18,8 +18,9 @@ class CollectorKafkaPropertiesValidationTest {
 
     @BeforeAll
     static void setUpValidator() {
-        ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
-        validator = validatorFactory.getValidator();
+        try (ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory()) {
+            validator = validatorFactory.getValidator();
+        }
     }
 
     @Test

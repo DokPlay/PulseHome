@@ -1,44 +1,47 @@
 package ru.yandex.practicum.telemetry.collector.dto.sensor;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.yandex.practicum.telemetry.collector.dto.enums.SensorEventType;
 
-public class ClimateSensorEvent extends SensorEvent {
+import java.time.Instant;
 
-    @NotNull
-    private Integer temperatureC;
+@JsonTypeName("CLIMATE_SENSOR_EVENT")
+/**
+ * Structural validation lives here; product-approved physical ranges for climate sensors should be
+ * introduced only after the supported device fleet and calibration rules are agreed.
+ */
+public record ClimateSensorEvent(
+        @NotBlank @Size(max = 255) String id,
+        @NotBlank @Size(max = 255) String hubId,
+        Instant timestamp,
+        @NotNull Integer temperatureC,
+        @NotNull @Min(0) @Max(100) Integer humidity,
+        @NotNull @Min(0) Integer co2Level
+) implements SensorEvent {
 
-    @NotNull
-    private Integer humidity;
+    public ClimateSensorEvent {
+        timestamp = timestamp == null ? Instant.now() : timestamp;
+    }
 
-    @NotNull
-    private Integer co2Level;
-
-    public ClimateSensorEvent() {
-        super(SensorEventType.CLIMATE_SENSOR_EVENT);
+    @Override
+    public SensorEventType type() {
+        return SensorEventType.CLIMATE_SENSOR_EVENT;
     }
 
     public Integer getTemperatureC() {
         return temperatureC;
     }
 
-    public void setTemperatureC(Integer temperatureC) {
-        this.temperatureC = temperatureC;
-    }
-
     public Integer getHumidity() {
         return humidity;
     }
 
-    public void setHumidity(Integer humidity) {
-        this.humidity = humidity;
-    }
-
     public Integer getCo2Level() {
         return co2Level;
-    }
-
-    public void setCo2Level(Integer co2Level) {
-        this.co2Level = co2Level;
     }
 }
