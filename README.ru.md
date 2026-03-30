@@ -157,8 +157,72 @@ flowchart LR
 - gRPC / Protobuf
 - PostgreSQL
 - Flyway
+- Bouncy Castle (PQC)
 - H2 для тестов
 - Docker Compose для локального production-like запуска
+
+## Постквантовая криптография
+
+PulseHome реализует гибридную постквантовую защиту на транспортном уровне Kafka, защищая весь телеметрический трафик от атак типа "Сохрани сейчас, расшифруй позже" (Store Now, Decrypt Later -- SNDL).
+
+### Почему это важно
+
+Квантовые компьютеры, способные взломать RSA и ECC, прогнозируются к 2029-2035 годам. Устройства умного дома живут 10-20 лет, а значит данные, перехваченные сегодня, могут быть ретроактивно расшифрованы. PulseHome закрывает эту угрозу превентивно.
+
+### Что защищено
+
+```
+Collector  ──TLS 1.3 + X25519MLKEM768──>  Kafka
+Aggregator ──TLS 1.3 + X25519MLKEM768──>  Kafka
+Analyzer   ──TLS 1.3 + X25519MLKEM768──>  Kafka
+```
+
+Каждый Kafka producer и consumer использует кастомную `HybridPqcSslEngineFactory`, которая настраивает TLS 1.3 handshake на приоритет гибридной группы обмена ключами **X25519MLKEM768**.
+
+### Стек алгоритмов
+
+| Уровень | Алгоритм | Стандарт | Назначение |
+| --- | --- | --- | --- |
+| Обмен ключами | **X25519MLKEM768** | NIST FIPS 203 + RFC 7748 | Гибрид: классический ECDH (X25519) + постквантовый ML-KEM-768 |
+| Симметричный шифр | AES-256-GCM или AES-128-GCM / CHACHA20-POLY1305 (согласуется TLS 1.3) | NIST FIPS 197 | Шифрование данных после согласования ключа; конкретный cipher suite определяется в ходе TLS 1.3 handshake с брокером |
+| Протокол TLS | TLS 1.3 | RFC 8446 | Транспортная защита с forward secrecy |
+| JCA-провайдер | Bouncy Castle + BCJSSE | BC 1.81 | PQC-совместимый JSSE-провайдер для named group negotiation |
+
+### Как это работает
+
+1. **BCJSSE-провайдер** регистрируется при старте каждого сервиса.
+2. Кастомная `HybridPqcSslEngineFactory` строит `SSLContext` из Kafka keystore/truststore конфигурации и выставляет `X25519MLKEM768` как приоритетную named group.
+3. При TLS 1.3 handshake клиент предлагает и классический X25519 key share, и ML-KEM-768 инкапсуляцию. Общий секрет вычисляется из **обоих** алгоритмов.
+4. Если брокер или JVM не поддерживают гибридную группу, handshake автоматически откатывается на классический `secp256r1` ECDH.
+
+### Graceful degradation
+
+PQC-слой спроектирован без потери совместимости:
+
+- **По умолчанию протокол `PLAINTEXT`** -- в dev-режиме нет TLS overhead.
+- Установите `KAFKA_SECURITY_PROTOCOL=SSL` + keystore/truststore env vars для активации.
+- Если `X25519MLKEM768` недоступен (старая JVM, брокер без PQC), engine тихо откатывается на стандартные ECDH группы.
+- Изменений в прикладном коде не требуется -- защита работает прозрачно на транспортном уровне.
+
+### Покрытие стандартов NIST
+
+| Стандарт | Алгоритм | Статус | Использование в PulseHome |
+| --- | --- | --- | --- |
+| FIPS 203 | ML-KEM (CRYSTALS-Kyber) | Финализирован авг. 2024 | Обмен ключами через X25519MLKEM768 |
+| FIPS 204 | ML-DSA (CRYSTALS-Dilithium) | Финализирован авг. 2024 | Доступен через Bouncy Castle для подписи сертификатов |
+| FIPS 205 | SLH-DSA (SPHINCS+) | Финализирован авг. 2024 | Доступен как консервативный резерв |
+
+### Конфигурация PQC
+
+```bash
+# Включить PQC-защищённые Kafka-соединения
+KAFKA_SECURITY_PROTOCOL=SSL
+KAFKA_SSL_TRUSTSTORE_LOCATION=/path/to/client.truststore.jks
+KAFKA_SSL_TRUSTSTORE_PASSWORD=changeit
+KAFKA_SSL_KEYSTORE_LOCATION=/path/to/client.keystore.jks
+KAFKA_SSL_KEYSTORE_PASSWORD=changeit
+KAFKA_SSL_KEY_PASSWORD=changeit
+```
 
 ## Java 25 baseline
 
