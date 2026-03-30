@@ -30,3 +30,10 @@ aggregator:
     topics:
       sensors: ${AGGREGATOR_KAFKA_SENSORS_TOPIC:telemetry.sensors.v1}
       snapshots: ${AGGREGATOR_KAFKA_SNAPSHOTS_TOPIC:telemetry.snapshots.v1}
+    ssl:
+      security-protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
+      truststore-password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:}
+      keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION:}
+      keystore-password: ${KAFKA_SSL_KEYSTORE_PASSWORD:}
+      key-password: ${KAFKA_SSL_KEY_PASSWORD:}
