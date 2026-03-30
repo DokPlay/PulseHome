@@ -157,8 +157,72 @@ flowchart LR
 - gRPC / Protobuf
 - PostgreSQL
 - Flyway
+- Bouncy Castle (PQC)
 - H2 for tests
 - Docker Compose for local production-like runs
+
+## Post-Quantum Cryptography
+
+PulseHome implements hybrid post-quantum protection at the Kafka transport layer, guarding all telemetry traffic against "Store Now, Decrypt Later" (SNDL) attacks.
+
+### Why it matters
+
+Quantum computers capable of breaking RSA and ECC are projected by 2029-2035. Smart home devices have a lifespan of 10-20 years, meaning data captured today may be decrypted retroactively. PulseHome addresses this threat proactively.
+
+### What is protected
+
+```
+Collector  ──TLS 1.3 + X25519MLKEM768──>  Kafka
+Aggregator ──TLS 1.3 + X25519MLKEM768──>  Kafka
+Analyzer   ──TLS 1.3 + X25519MLKEM768──>  Kafka
+```
+
+Every Kafka producer and consumer uses a custom `HybridPqcSslEngineFactory` that configures the TLS 1.3 handshake to prioritize the hybrid key exchange group **X25519MLKEM768**.
+
+### Algorithm stack
+
+| Layer | Algorithm | Standard | Purpose |
+| --- | --- | --- | --- |
+| Key exchange | **X25519MLKEM768** | NIST FIPS 203 + RFC 7748 | Hybrid: classical ECDH (X25519) combined with post-quantum ML-KEM-768 |
+| Symmetric cipher | AES-256-GCM | NIST FIPS 197 | Bulk data encryption after key agreement |
+| TLS protocol | TLS 1.3 | RFC 8446 | Transport security with forward secrecy |
+| JCA provider | Bouncy Castle + BCJSSE | BC 1.81 | PQC-capable JSSE provider for named group negotiation |
+
+### How it works
+
+1. **BCJSSE provider** is registered at application startup in every service.
+2. The custom `HybridPqcSslEngineFactory` builds an `SSLContext` from Kafka keystore/truststore config and sets `X25519MLKEM768` as the preferred named group.
+3. During the TLS 1.3 handshake, the client proposes both a classical X25519 key share and an ML-KEM-768 encapsulation. The shared secret is derived from **both** algorithms.
+4. If the broker or the JVM does not support the hybrid group, the handshake gracefully falls back to classical `secp256r1` ECDH.
+
+### Graceful degradation
+
+The PQC layer is designed to be zero-disruption:
+
+- **Default protocol is `PLAINTEXT`** -- no TLS overhead in dev mode.
+- Set `KAFKA_SECURITY_PROTOCOL=SSL` plus keystore/truststore env vars to activate.
+- If `X25519MLKEM768` is not available (older JVM, non-PQC broker), the engine silently falls back to standard ECDH groups.
+- No application code changes are required -- protection is transparent at the transport level.
+
+### NIST standards coverage
+
+| Standard | Algorithm | Status | Usage in PulseHome |
+| --- | --- | --- | --- |
+| FIPS 203 | ML-KEM (CRYSTALS-Kyber) | Finalized Aug 2024 | Key exchange via X25519MLKEM768 |
+| FIPS 204 | ML-DSA (CRYSTALS-Dilithium) | Finalized Aug 2024 | Available via Bouncy Castle for future certificate signing |
+| FIPS 205 | SLH-DSA (SPHINCS+) | Finalized Aug 2024 | Available as conservative backup |
+
+### Configuration
+
+```bash
+# Enable PQC-protected Kafka connections
+KAFKA_SECURITY_PROTOCOL=SSL
+KAFKA_SSL_TRUSTSTORE_LOCATION=/path/to/client.truststore.jks
+KAFKA_SSL_TRUSTSTORE_PASSWORD=changeit
+KAFKA_SSL_KEYSTORE_LOCATION=/path/to/client.keystore.jks
+KAFKA_SSL_KEYSTORE_PASSWORD=changeit
+KAFKA_SSL_KEY_PASSWORD=changeit
+```
 
 ## Java 25 baseline
 
