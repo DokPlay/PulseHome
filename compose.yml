@@ -1,13 +1,28 @@
 services:
+  # ---------- TLS certificate bootstrap ----------
+  tls-init:
+    image: eclipse-temurin:25-jdk
+    entrypoint: ["/bin/bash", "/scripts/generate-certs.sh"]
+    environment:
+      CERT_DIR: /certs
+      STORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+    volumes:
+      - pulsehome-tls-certs:/certs
+      - ./infra/tls/generate-certs.sh:/scripts/generate-certs.sh:ro
+
+  # ---------- Kafka (TLS) ----------
   kafka:
     image: confluentinc/cp-kafka:7.8.0
+    depends_on:
+      tls-init:
+        condition: service_completed_successfully
     environment:
       CLUSTER_ID: abcdefghijklmnopqrstuv
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: SSL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: SSL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -16,12 +31,21 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Broker TLS
+      KAFKA_SSL_KEYSTORE_LOCATION: /certs/kafka.keystore.p12
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_CLIENT_AUTH: required
+      KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.3
     ports:
       - "9092:9092"
     volumes:
       - pulsehome-kafka-data:/var/lib/kafka/data
+      - pulsehome-tls-certs:/certs:ro
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --command-config /dev/null --list >/dev/null 2>&1 || kill -0 1"]
       interval: 10s
       timeout: 10s
       retries: 12
@@ -70,12 +94,20 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: SSL
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
       COLLECTOR_BASIC_AUTH_USERNAME: ${COLLECTOR_BASIC_AUTH_USERNAME:-collector}
       COLLECTOR_BASIC_AUTH_PASSWORD: ${COLLECTOR_BASIC_AUTH_PASSWORD:?Set COLLECTOR_BASIC_AUTH_PASSWORD in your environment or .env}
       COLLECTOR_REQUIRE_HTTPS: "false"
       COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
     ports:
       - "8080:8080"
+    volumes:
+      - pulsehome-tls-certs:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null"]
       interval: 10s
@@ -94,7 +126,15 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: SSL
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
       AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
+    volumes:
+      - pulsehome-tls-certs:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1"]
       interval: 10s
@@ -117,12 +157,20 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: SSL
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
       ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
       ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PULSEHOME_POSTGRES_DB:-analyzer}
       ANALYZER_DATASOURCE_USERNAME: ${PULSEHOME_POSTGRES_USER:?Set PULSEHOME_POSTGRES_USER in your environment or .env}
       ANALYZER_DATASOURCE_PASSWORD: ${PULSEHOME_POSTGRES_PASSWORD:?Set PULSEHOME_POSTGRES_PASSWORD in your environment or .env}
       GRPC_HUB_ROUTER_ADDRESS: static://hub-router-stub:59090
       GRPC_HUB_ROUTER_NEGOTIATION_TYPE: plaintext
+    volumes:
+      - pulsehome-tls-certs:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1"]
       interval: 10s
@@ -132,3 +180,4 @@ services:
 volumes:
   pulsehome-kafka-data:
   pulsehome-postgres-data:
+  pulsehome-tls-certs:

@@ -1,13 +1,12 @@
 package ru.yandex.practicum.telemetry.collector.config;
 
-import org.apache.avro.specific.SpecificRecordBase;
-import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.avro.specific.SpecificRecordBase;
 import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 
 class KafkaProducerConfigSslTest {
 
@@ -32,6 +31,7 @@ class KafkaProducerConfigSslTest {
                 .containsEntry("ssl.protocol", "TLSv1.3")
                 .containsEntry("ssl.engine.factory.class",
                         "ru.yandex.practicum.telemetry.collector.config.pqc.HybridPqcSslEngineFactory")
+                .containsEntry("ssl.pqc.require", "true")
                 .containsEntry("ssl.truststore.location", "/tls/client.truststore.p12")
                 .containsEntry("ssl.keystore.location", "/tls/client.keystore.p12")
                 .containsEntry("ssl.key.password", "private-secret");
@@ -41,6 +41,7 @@ class KafkaProducerConfigSslTest {
 
         assertThat(adminConfiguration)
                 .containsEntry("security.protocol", "SSL")
+                .containsEntry("ssl.pqc.require", "true")
                 .containsEntry("ssl.engine.factory.class",
                         "ru.yandex.practicum.telemetry.collector.config.pqc.HybridPqcSslEngineFactory");
     }

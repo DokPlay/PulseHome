@@ -1,14 +1,15 @@
 package ru.yandex.practicum.telemetry.analyzer.config;
 
+import java.time.Duration;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
-import java.time.Duration;
 
 @Validated
 @ConfigurationProperties(prefix = "analyzer.kafka")
@@ -225,6 +226,7 @@ public class AnalyzerKafkaProperties {
     public static class Ssl {
 
         private String securityProtocol = "PLAINTEXT";
+        private boolean pqcRequire = true;
         private String truststoreLocation = "";
         private String truststorePassword = "";
         private String keystoreLocation = "";
@@ -241,6 +243,14 @@ public class AnalyzerKafkaProperties {
 
         public void setSecurityProtocol(String securityProtocol) {
             this.securityProtocol = securityProtocol;
+        }
+
+        public boolean isPqcRequire() {
+            return pqcRequire;
+        }
+
+        public void setPqcRequire(boolean pqcRequire) {
+            this.pqcRequire = pqcRequire;
         }
 
         public String getTruststoreLocation() {

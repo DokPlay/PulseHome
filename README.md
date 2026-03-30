@@ -184,7 +184,7 @@ Every Kafka producer and consumer uses a custom `HybridPqcSslEngineFactory` that
 | Layer | Algorithm | Standard | Purpose |
 | --- | --- | --- | --- |
 | Key exchange | **X25519MLKEM768** | NIST FIPS 203 + RFC 7748 | Hybrid: classical ECDH (X25519) combined with post-quantum ML-KEM-768 |
-| Symmetric cipher | AES-256-GCM or AES-128-GCM / CHACHA20-POLY1305 (TLS 1.3 negotiated) | NIST FIPS 197 | Bulk data encryption after key agreement; actual suite is negotiated by TLS 1.3 with the broker |
+| Symmetric cipher | AES-256-GCM / AES-128-GCM / CHACHA20-POLY1305 | NIST FIPS 197 | Negotiated by TLS 1.3 with the broker |
 | TLS protocol | TLS 1.3 | RFC 8446 | Transport security with forward secrecy |
 | JCA provider | Bouncy Castle + BCJSSE | BC 1.81 | PQC-capable JSSE provider for named group negotiation |
 
@@ -193,16 +193,19 @@ Every Kafka producer and consumer uses a custom `HybridPqcSslEngineFactory` that
 1. **BCJSSE provider** is registered at application startup in every service.
 2. The custom `HybridPqcSslEngineFactory` builds an `SSLContext` from Kafka keystore/truststore config and sets `X25519MLKEM768` as the preferred named group.
 3. During the TLS 1.3 handshake, the client proposes both a classical X25519 key share and an ML-KEM-768 encapsulation. The shared secret is derived from **both** algorithms.
-4. If the broker or the JVM does not support the hybrid group, the handshake gracefully falls back to classical `secp256r1` ECDH.
+4. If the BCJSSE provider is not on the classpath or X25519MLKEM768 is not supported, the factory **refuses to start** (`IllegalStateException`). There is no silent downgrade.
 
-### Graceful degradation
+### Enforced protection
 
-The PQC layer is designed to be zero-disruption:
+PQC is **mandatory** in production (`ssl.pqc.require` defaults to `true`):
 
-- **Default protocol is `PLAINTEXT`** -- no TLS overhead in dev mode.
-- Set `KAFKA_SECURITY_PROTOCOL=SSL` plus keystore/truststore env vars to activate.
-- If `X25519MLKEM768` is not available (older JVM, non-PQC broker), the engine silently falls back to standard ECDH groups.
-- No application code changes are required -- protection is transparent at the transport level.
+- If `BCJSSE` provider is missing → startup **fails** with a clear error.
+- If `X25519MLKEM768` is not supported by the provider → startup **fails**.
+- The factory **does not silently fall back** to classical ECDH.
+- To run without PQC (dev/test only), explicitly set `KAFKA_SSL_PQC_REQUIRE=false`.
+
+> **Principle:** a quantum-unsafe connection is worse than no connection at all.
+> PulseHome prefers to crash-and-alert rather than silently degrade.
 
 ### NIST standards coverage
 
@@ -212,17 +215,57 @@ The PQC layer is designed to be zero-disruption:
 | FIPS 204 | ML-DSA (CRYSTALS-Dilithium) | Finalized Aug 2024 | Available via Bouncy Castle for future certificate signing |
 | FIPS 205 | SLH-DSA (SPHINCS+) | Finalized Aug 2024 | Available as conservative backup |
 
-### Configuration
+### TLS certificates and production key setup
+
+Docker Compose generates self-signed certificates automatically via the `tls-init` service.
+For production, replace them with certificates issued by your organization's CA.
+
+**1. Automatic (Docker Compose dev/staging):**
 
 ```bash
-# Enable PQC-protected Kafka connections
-KAFKA_SECURITY_PROTOCOL=SSL
-KAFKA_SSL_TRUSTSTORE_LOCATION=/path/to/client.truststore.jks
-KAFKA_SSL_TRUSTSTORE_PASSWORD=changeit
-KAFKA_SSL_KEYSTORE_LOCATION=/path/to/client.keystore.jks
-KAFKA_SSL_KEYSTORE_PASSWORD=changeit
-KAFKA_SSL_KEY_PASSWORD=changeit
+cp .env.example .env
+# Set a strong password:
+#   TLS_STORE_PASSWORD=your-strong-password-here
+docker compose up --build -d
 ```
+
+The `tls-init` service runs `infra/tls/generate-certs.sh` and produces:
+- `ca.p12` — self-signed CA keystore
+- `kafka.keystore.p12` — broker keystore (signed by CA)
+- `client.keystore.p12` — shared client keystore (signed by CA)
+- `truststore.p12` — truststore with the CA certificate
+
+All services mount the shared volume `pulsehome-tls-certs` and use the same `TLS_STORE_PASSWORD`.
+
+**2. Production (bring your own certificates):**
+
+```bash
+# Required environment variables for each service:
+KAFKA_SECURITY_PROTOCOL=SSL
+KAFKA_SSL_TRUSTSTORE_LOCATION=/path/to/truststore.p12
+KAFKA_SSL_TRUSTSTORE_PASSWORD=<truststore-password>
+KAFKA_SSL_KEYSTORE_LOCATION=/path/to/client.keystore.p12
+KAFKA_SSL_KEYSTORE_PASSWORD=<keystore-password>
+KAFKA_SSL_KEY_PASSWORD=<private-key-password>
+
+# PQC enforcement (default: true, do NOT disable in production)
+KAFKA_SSL_PQC_REQUIRE=true
+```
+
+**3. Where to put secrets:**
+
+| Secret | Where | Format |
+| --- | --- | --- |
+| `TLS_STORE_PASSWORD` | `.env` file (Docker) or vault | Single shared password for all auto-generated stores |
+| `KAFKA_SSL_*_PASSWORD` | Environment variable or K8s Secret | Per-store passwords when using custom certs |
+| `COLLECTOR_BASIC_AUTH_PASSWORD` | `.env` file or vault | HTTP Basic Auth for Collector API |
+| `PULSEHOME_POSTGRES_PASSWORD` | `.env` file or vault | PostgreSQL password for Analyzer |
+
+> **Security rules:**
+> - Never commit `.env` or keystore files to Git (`.gitignore` already excludes them).
+> - Use a secrets manager (HashiCorp Vault, AWS Secrets Manager, K8s Secrets) in production.
+> - Rotate TLS certificates before expiry (`CERT_VALIDITY` defaults to 825 days).
+> - Use unique passwords per keystore in production — the shared `TLS_STORE_PASSWORD` is for local dev only.
 
 ## Java 25 baseline
 
