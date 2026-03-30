@@ -25,6 +25,13 @@ analyzer:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     topic-bootstrap-enabled: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED:false}
     topic-bootstrap-timeout: ${ANALYZER_KAFKA_TOPIC_BOOTSTRAP_TIMEOUT:10s}
+    ssl:
+      security-protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
+      truststore-password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:}
+      keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION:}
+      keystore-password: ${KAFKA_SSL_KEYSTORE_PASSWORD:}
+      key-password: ${KAFKA_SSL_KEY_PASSWORD:}
     topics:
       hubs: ${ANALYZER_KAFKA_HUBS_TOPIC:telemetry.hubs.v1}
       hubs-dlq: ${ANALYZER_KAFKA_HUBS_DLQ_TOPIC:telemetry.hubs.dlq.v1}

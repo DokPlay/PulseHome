@@ -53,6 +53,10 @@ public class AggregatorKafkaProperties {
     @Valid
     private Topics topics = new Topics();
 
+    @NotNull
+    @Valid
+    private Ssl ssl = new Ssl();
+
     public String getBootstrapServers() {
         return bootstrapServers;
     }
@@ -131,6 +135,14 @@ public class AggregatorKafkaProperties {
 
     public void setTopics(Topics topics) {
         this.topics = topics;
+    }
+
+    public Ssl getSsl() {
+        return ssl;
+    }
+
+    public void setSsl(Ssl ssl) {
+        this.ssl = ssl;
     }
 
     @AssertTrue(message = "aggregator.kafka.sendTimeout must be greater than aggregator.kafka.producer.lingerMs")
@@ -285,5 +297,36 @@ public class AggregatorKafkaProperties {
         public void setSnapshots(String snapshots) {
             this.snapshots = snapshots;
         }
+    }
+
+    /**
+     * Kafka SSL / PQC TLS settings.  When {@code securityProtocol} is
+     * {@code PLAINTEXT} (default) all other fields are ignored.
+     */
+    public static class Ssl {
+
+        private String securityProtocol = "PLAINTEXT";
+        private String truststoreLocation = "";
+        private String truststorePassword = "";
+        private String keystoreLocation = "";
+        private String keystorePassword = "";
+        private String keyPassword = "";
+
+        public boolean isEnabled() {
+            return "SSL".equalsIgnoreCase(securityProtocol);
+        }
+
+        public String getSecurityProtocol() { return securityProtocol; }
+        public void setSecurityProtocol(String securityProtocol) { this.securityProtocol = securityProtocol; }
+        public String getTruststoreLocation() { return truststoreLocation; }
+        public void setTruststoreLocation(String truststoreLocation) { this.truststoreLocation = truststoreLocation; }
+        public String getTruststorePassword() { return truststorePassword; }
+        public void setTruststorePassword(String truststorePassword) { this.truststorePassword = truststorePassword; }
+        public String getKeystoreLocation() { return keystoreLocation; }
+        public void setKeystoreLocation(String keystoreLocation) { this.keystoreLocation = keystoreLocation; }
+        public String getKeystorePassword() { return keystorePassword; }
+        public void setKeystorePassword(String keystorePassword) { this.keystorePassword = keystorePassword; }
+        public String getKeyPassword() { return keyPassword; }
+        public void setKeyPassword(String keyPassword) { this.keyPassword = keyPassword; }
     }
 }

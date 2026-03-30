@@ -43,6 +43,15 @@
             <artifactId>avro-schemas</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Post-Quantum Cryptography: Bouncy Castle provider (includes ML-KEM, ML-DSA) -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-jdk18on</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>

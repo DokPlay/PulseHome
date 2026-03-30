@@ -55,6 +55,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Post-Quantum Cryptography: Bouncy Castle core provider (includes ML-KEM, ML-DSA since 1.78) -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>1.81</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bctls-jdk18on</artifactId>
+                <version>1.81</version>
+            </dependency>
             <!-- CVE-2025-48734: commons-beanutils Improper Access Control -->
             <dependency>
                 <groupId>commons-beanutils</groupId>

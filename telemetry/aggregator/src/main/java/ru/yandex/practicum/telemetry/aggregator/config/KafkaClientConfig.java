@@ -36,6 +36,26 @@ public class KafkaClientConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaClientConfig.class);
 
+    /**
+     * Appends PQC / TLS SSL properties to a Kafka client config map when
+     * {@code aggregator.kafka.ssl.security-protocol} is set to {@code SSL}.
+     */
+    private static void applySslProperties(Map<String, Object> config, AggregatorKafkaProperties properties) {
+        AggregatorKafkaProperties.Ssl ssl = properties.getSsl();
+        if (!ssl.isEnabled()) {
+            return;
+        }
+        config.put("security.protocol", ssl.getSecurityProtocol());
+        config.put("ssl.protocol", "TLSv1.3");
+        config.put("ssl.engine.factory.class",
+                "ru.yandex.practicum.telemetry.aggregator.config.pqc.HybridPqcSslEngineFactory");
+        config.put("ssl.truststore.location", ssl.getTruststoreLocation());
+        config.put("ssl.truststore.password", ssl.getTruststorePassword());
+        config.put("ssl.keystore.location", ssl.getKeystoreLocation());
+        config.put("ssl.keystore.password", ssl.getKeystorePassword());
+        config.put("ssl.key.password", ssl.getKeyPassword());
+    }
+
     @Bean(destroyMethod = "")
     public Consumer<String, SensorEventAvro> sensorEventConsumer(AggregatorKafkaProperties properties) {
         AggregatorKafkaProperties.Consumer consumer = properties.getConsumer();
@@ -49,6 +69,7 @@ public class KafkaClientConfig {
         configuration.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, consumer.getAutoOffsetReset());
         configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumer.getMaxPollRecords());
+        applySslProperties(configuration, properties);
         return new KafkaConsumer<>(configuration);
     }
 
@@ -64,6 +85,7 @@ public class KafkaClientConfig {
         configuration.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumer.getMaxPollRecords());
+        applySslProperties(configuration, properties);
         return new KafkaConsumer<>(configuration);
     }
 
@@ -87,6 +109,7 @@ public class KafkaClientConfig {
         configuration.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, sendTimeoutMs);
         configuration.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
         configuration.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, sendTimeoutMs);
+        applySslProperties(configuration, properties);
         return new KafkaProducer<>(configuration);
     }
 
@@ -101,12 +124,14 @@ public class KafkaClientConfig {
                     new NewTopic(properties.getTopics().getSensors(), Optional.empty(), Optional.empty()),
                     new NewTopic(properties.getTopics().getSnapshots(), Optional.empty(), Optional.empty())
             );
-            createTopics(properties.getBootstrapServers(), properties.getTopicBootstrapTimeout().toMillis(), topics);
+            createTopics(properties, properties.getTopicBootstrapTimeout().toMillis(), topics);
         };
     }
 
-    private void createTopics(String bootstrapServers, long timeoutMs, List<NewTopic> topics) throws Exception {
-        Map<String, Object> configuration = Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    private void createTopics(AggregatorKafkaProperties properties, long timeoutMs, List<NewTopic> topics) throws Exception {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        applySslProperties(configuration, properties);
         try (AdminClient adminClient = AdminClient.create(configuration)) {
             var topicResults = adminClient.createTopics(topics).values();
             for (NewTopic topic : topics) {
