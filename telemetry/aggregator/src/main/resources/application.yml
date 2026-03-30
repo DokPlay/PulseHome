@@ -32,6 +32,7 @@ aggregator:
       snapshots: ${AGGREGATOR_KAFKA_SNAPSHOTS_TOPIC:telemetry.snapshots.v1}
     ssl:
       security-protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      pqc-require: ${KAFKA_SSL_PQC_REQUIRE:true}
       truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
       truststore-password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:}
       keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION:}

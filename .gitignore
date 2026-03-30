@@ -17,6 +17,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# TLS certificates (generated at runtime)
+infra/tls/certs/
+
 # Local configuration overrides
 *application-local.yml
 *application-local.properties

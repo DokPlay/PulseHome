@@ -1,12 +1,20 @@
 package ru.yandex.practicum.telemetry.collector.config;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.errors.TopicExistsException;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
@@ -15,15 +23,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import ru.yandex.practicum.telemetry.serialization.AvroMessageSerializer;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import ru.yandex.practicum.telemetry.serialization.AvroMessageSerializer;
 
 @Configuration
 public class KafkaProducerConfig {
@@ -90,6 +91,7 @@ public class KafkaProducerConfig {
         configuration.put("security.protocol", ssl.getSecurityProtocol());
         configuration.put("ssl.protocol", SSL_PROTOCOL);
         configuration.put("ssl.engine.factory.class", SSL_ENGINE_FACTORY_CLASS);
+        configuration.put("ssl.pqc.require", String.valueOf(ssl.isPqcRequire()));
         configuration.put("ssl.truststore.location", ssl.getTruststoreLocation());
         configuration.put("ssl.truststore.password", ssl.getTruststorePassword());
         configuration.put("ssl.keystore.location", ssl.getKeystoreLocation());
