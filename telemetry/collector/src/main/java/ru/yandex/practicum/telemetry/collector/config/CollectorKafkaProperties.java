@@ -37,6 +37,10 @@ public class CollectorKafkaProperties {
     @Valid
     private Topics topics = new Topics();
 
+    @NotNull
+    @Valid
+    private Ssl ssl = new Ssl();
+
     public String getBootstrapServers() {
         return bootstrapServers;
     }
@@ -83,6 +87,14 @@ public class CollectorKafkaProperties {
 
     public void setProducer(Producer producer) {
         this.producer = producer;
+    }
+
+    public Ssl getSsl() {
+        return ssl;
+    }
+
+    public void setSsl(Ssl ssl) {
+        this.ssl = ssl;
     }
 
     @AssertTrue(message = "collector.kafka.sendTimeout must be greater than collector.kafka.producer.lingerMs")
@@ -188,6 +200,68 @@ public class CollectorKafkaProperties {
         @AssertTrue(message = "collector.kafka.producer.maxInFlightRequestsPerConnection must be <= 5 when idempotence is enabled")
         public boolean isIdempotenceCompatibleWithMaxInFlight() {
             return !enableIdempotence || maxInFlightRequestsPerConnection <= 5;
+        }
+    }
+
+    public static class Ssl {
+
+        private String securityProtocol = "PLAINTEXT";
+        private String truststoreLocation = "";
+        private String truststorePassword = "";
+        private String keystoreLocation = "";
+        private String keystorePassword = "";
+        private String keyPassword = "";
+
+        public boolean isEnabled() {
+            return "SSL".equalsIgnoreCase(securityProtocol);
+        }
+
+        public String getSecurityProtocol() {
+            return securityProtocol;
+        }
+
+        public void setSecurityProtocol(String securityProtocol) {
+            this.securityProtocol = securityProtocol;
+        }
+
+        public String getTruststoreLocation() {
+            return truststoreLocation;
+        }
+
+        public void setTruststoreLocation(String truststoreLocation) {
+            this.truststoreLocation = truststoreLocation;
+        }
+
+        public String getTruststorePassword() {
+            return truststorePassword;
+        }
+
+        public void setTruststorePassword(String truststorePassword) {
+            this.truststorePassword = truststorePassword;
+        }
+
+        public String getKeystoreLocation() {
+            return keystoreLocation;
+        }
+
+        public void setKeystoreLocation(String keystoreLocation) {
+            this.keystoreLocation = keystoreLocation;
+        }
+
+        public String getKeystorePassword() {
+            return keystorePassword;
+        }
+
+        public void setKeystorePassword(String keystorePassword) {
+            this.keystorePassword = keystorePassword;
+        }
+
+        public String getKeyPassword() {
+            return keyPassword;
+        }
+
+        public void setKeyPassword(String keyPassword) {
+            this.keyPassword = keyPassword;
         }
     }
 }

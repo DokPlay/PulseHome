@@ -34,6 +34,9 @@ import java.util.concurrent.TimeUnit;
 public class KafkaConsumerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
+    private static final String SSL_PROTOCOL = "TLSv1.3";
+    private static final String SSL_ENGINE_FACTORY_CLASS =
+            "ru.yandex.practicum.telemetry.analyzer.config.pqc.HybridPqcSslEngineFactory";
 
     @Bean(name = "hubEventConsumer", destroyMethod = "")
     public Consumer<String, HubEventAvro> hubEventConsumer(AnalyzerKafkaProperties properties) {
@@ -70,6 +73,7 @@ public class KafkaConsumerConfig {
         configuration.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configuration.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configuration.put(ProducerConfig.ACKS_CONFIG, "all");
+        applySslProperties(configuration, properties);
         return new KafkaProducer<>(configuration);
     }
 
@@ -84,6 +88,7 @@ public class KafkaConsumerConfig {
         configuration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, consumerSettings.getAutoOffsetReset());
         configuration.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, consumerSettings.getMaxPollRecords());
         configuration.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, consumerSettings.getMaxPollIntervalMs());
+        applySslProperties(configuration, properties);
         return configuration;
     }
 
@@ -100,12 +105,30 @@ public class KafkaConsumerConfig {
                     new NewTopic(properties.getTopics().getHubsDlq(), Optional.empty(), Optional.empty()),
                     new NewTopic(properties.getTopics().getSnapshotsDlq(), Optional.empty(), Optional.empty())
             );
-            createTopics(properties.getBootstrapServers(), properties.getTopicBootstrapTimeout().toMillis(), topics);
+            createTopics(properties, properties.getTopicBootstrapTimeout().toMillis(), topics);
         };
     }
 
-    private void createTopics(String bootstrapServers, long timeoutMs, List<NewTopic> topics) throws Exception {
-        Map<String, Object> configuration = Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    static void applySslProperties(Map<String, Object> configuration, AnalyzerKafkaProperties properties) {
+        AnalyzerKafkaProperties.Ssl ssl = properties.getSsl();
+        if (!ssl.isEnabled()) {
+            return;
+        }
+
+        configuration.put("security.protocol", ssl.getSecurityProtocol());
+        configuration.put("ssl.protocol", SSL_PROTOCOL);
+        configuration.put("ssl.engine.factory.class", SSL_ENGINE_FACTORY_CLASS);
+        configuration.put("ssl.truststore.location", ssl.getTruststoreLocation());
+        configuration.put("ssl.truststore.password", ssl.getTruststorePassword());
+        configuration.put("ssl.keystore.location", ssl.getKeystoreLocation());
+        configuration.put("ssl.keystore.password", ssl.getKeystorePassword());
+        configuration.put("ssl.key.password", ssl.getKeyPassword());
+    }
+
+    private void createTopics(AnalyzerKafkaProperties properties, long timeoutMs, List<NewTopic> topics) throws Exception {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        applySslProperties(configuration, properties);
         try (AdminClient adminClient = AdminClient.create(configuration)) {
             var topicResults = adminClient.createTopics(topics).values();
             for (NewTopic topic : topics) {

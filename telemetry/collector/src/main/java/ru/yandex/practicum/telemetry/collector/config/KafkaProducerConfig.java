@@ -29,6 +29,9 @@ import java.util.concurrent.TimeUnit;
 public class KafkaProducerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
+    private static final String SSL_PROTOCOL = "TLSv1.3";
+    private static final String SSL_ENGINE_FACTORY_CLASS =
+            "ru.yandex.practicum.telemetry.collector.config.pqc.HybridPqcSslEngineFactory";
 
     @Bean
     public ProducerFactory<String, SpecificRecordBase> producerFactory(CollectorKafkaProperties properties) {
@@ -52,6 +55,7 @@ public class KafkaProducerConfig {
         configuration.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, sendTimeoutMs);
         configuration.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
         configuration.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, sendTimeoutMs);
+        applySslProperties(configuration, properties);
         return new DefaultKafkaProducerFactory<>(configuration);
     }
 
@@ -73,12 +77,30 @@ public class KafkaProducerConfig {
                     new NewTopic(properties.getTopics().getSensors(), Optional.empty(), Optional.empty()),
                     new NewTopic(properties.getTopics().getHubs(), Optional.empty(), Optional.empty())
             );
-            createTopics(properties.getBootstrapServers(), properties.getTopicBootstrapTimeout().toMillis(), topics);
+            createTopics(properties, properties.getTopicBootstrapTimeout().toMillis(), topics);
         };
     }
 
-    private void createTopics(String bootstrapServers, long timeoutMs, List<NewTopic> topics) throws Exception {
-        Map<String, Object> configuration = Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    static void applySslProperties(Map<String, Object> configuration, CollectorKafkaProperties properties) {
+        CollectorKafkaProperties.Ssl ssl = properties.getSsl();
+        if (!ssl.isEnabled()) {
+            return;
+        }
+
+        configuration.put("security.protocol", ssl.getSecurityProtocol());
+        configuration.put("ssl.protocol", SSL_PROTOCOL);
+        configuration.put("ssl.engine.factory.class", SSL_ENGINE_FACTORY_CLASS);
+        configuration.put("ssl.truststore.location", ssl.getTruststoreLocation());
+        configuration.put("ssl.truststore.password", ssl.getTruststorePassword());
+        configuration.put("ssl.keystore.location", ssl.getKeystoreLocation());
+        configuration.put("ssl.keystore.password", ssl.getKeystorePassword());
+        configuration.put("ssl.key.password", ssl.getKeyPassword());
+    }
+
+    private void createTopics(CollectorKafkaProperties properties, long timeoutMs, List<NewTopic> topics) throws Exception {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+        applySslProperties(configuration, properties);
         try (AdminClient adminClient = AdminClient.create(configuration)) {
             var topicResults = adminClient.createTopics(topics).values();
             for (NewTopic topic : topics) {
