@@ -1,5 +1,13 @@
 package ru.yandex.practicum.telemetry.aggregator.config;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -9,27 +17,20 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.common.errors.TopicExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.telemetry.serialization.AvroMessageSerializer;
 import ru.yandex.practicum.telemetry.serialization.SensorEventDeserializer;
 import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class KafkaClientConfig {
@@ -49,6 +50,7 @@ public class KafkaClientConfig {
         config.put("ssl.protocol", "TLSv1.3");
         config.put("ssl.engine.factory.class",
                 "ru.yandex.practicum.telemetry.aggregator.config.pqc.HybridPqcSslEngineFactory");
+        config.put("ssl.pqc.require", String.valueOf(ssl.isPqcRequire()));
         config.put("ssl.truststore.location", ssl.getTruststoreLocation());
         config.put("ssl.truststore.password", ssl.getTruststorePassword());
         config.put("ssl.keystore.location", ssl.getKeystoreLocation());

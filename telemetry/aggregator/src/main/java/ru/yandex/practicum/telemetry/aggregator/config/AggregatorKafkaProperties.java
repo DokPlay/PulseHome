@@ -1,17 +1,18 @@
 package ru.yandex.practicum.telemetry.aggregator.config;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Pattern;
+import java.time.Duration;
+
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-import java.time.Duration;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @Validated
 @ConfigurationProperties(prefix = "aggregator.kafka")
@@ -306,6 +307,7 @@ public class AggregatorKafkaProperties {
     public static class Ssl {
 
         private String securityProtocol = "PLAINTEXT";
+        private boolean pqcRequire = true;
         private String truststoreLocation = "";
         private String truststorePassword = "";
         private String keystoreLocation = "";
@@ -318,6 +320,8 @@ public class AggregatorKafkaProperties {
 
         public String getSecurityProtocol() { return securityProtocol; }
         public void setSecurityProtocol(String securityProtocol) { this.securityProtocol = securityProtocol; }
+        public boolean isPqcRequire() { return pqcRequire; }
+        public void setPqcRequire(boolean pqcRequire) { this.pqcRequire = pqcRequire; }
         public String getTruststoreLocation() { return truststoreLocation; }
         public void setTruststoreLocation(String truststoreLocation) { this.truststoreLocation = truststoreLocation; }
         public String getTruststorePassword() { return truststorePassword; }

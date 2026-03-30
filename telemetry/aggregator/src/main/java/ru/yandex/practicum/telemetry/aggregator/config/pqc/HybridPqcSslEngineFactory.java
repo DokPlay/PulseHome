@@ -1,14 +1,5 @@
 package ru.yandex.practicum.telemetry.aggregator.config.pqc;
 
-import org.apache.kafka.common.security.auth.SslEngineFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -19,6 +10,16 @@ import java.security.Security;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManagerFactory;
+
+import org.apache.kafka.common.security.auth.SslEngineFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Custom {@link SslEngineFactory} for Kafka clients that enables hybrid
@@ -45,12 +46,16 @@ public class HybridPqcSslEngineFactory implements SslEngineFactory {
             "secp521r1"
     };
 
+    private static final String REQUIRE_PQC_CONFIG = "ssl.pqc.require";
+
     private SSLContext sslContext;
     private KeyStore keyStore;
     private KeyStore trustStore;
+    private boolean requirePqc = true;
 
     @Override
     public void configure(Map<String, ?> configs) {
+        this.requirePqc = !"false".equalsIgnoreCase(stringValue(configs, REQUIRE_PQC_CONFIG));
         try {
             this.trustStore = loadStore(configs, "ssl.truststore.location", "ssl.truststore.password");
             this.keyStore = loadStore(configs, "ssl.keystore.location", "ssl.keystore.password");
@@ -67,8 +72,10 @@ public class HybridPqcSslEngineFactory implements SslEngineFactory {
             sslContext = createSslContext();
             sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
 
-            log.info("PQC SslEngineFactory initialised (TLSv1.3, provider: {}, target group: {})",
-                    sslContext.getProvider().getName(), PQC_HYBRID_GROUP);
+            verifyPqcSupport();
+
+            log.info("PQC SslEngineFactory initialised (TLSv1.3, provider: {}, target group: {}, pqc-required: {})",
+                    sslContext.getProvider().getName(), PQC_HYBRID_GROUP, requirePqc);
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialise PQC SSLContext from Kafka config", e);
         }
@@ -122,41 +129,42 @@ public class HybridPqcSslEngineFactory implements SslEngineFactory {
     }
 
     private SSLContext createSslContext() throws Exception {
-        SSLContext context;
-        if (Security.getProvider(JSSE_PROVIDER) != null) {
-            context = SSLContext.getInstance("TLSv1.3", JSSE_PROVIDER);
-        } else {
-            log.warn("{} provider is not registered. Falling back to default JSSE provider; hybrid PQC TLS may not be negotiated.",
-                    JSSE_PROVIDER);
-            context = SSLContext.getInstance("TLSv1.3");
+        if (Security.getProvider(JSSE_PROVIDER) == null) {
+            if (requirePqc) {
+                throw new IllegalStateException(
+                        JSSE_PROVIDER + " provider is not registered. "
+                                + "Post-quantum TLS requires Bouncy Castle JSSE. "
+                                + "Add bcprov-jdk18on + bctls-jdk18on to the classpath "
+                                + "or set ssl.pqc.require=false to allow classical-only TLS.");
+            }
+            log.warn("{} provider is not registered. PQC TLS will NOT be negotiated.", JSSE_PROVIDER);
+            return SSLContext.getInstance("TLSv1.3");
         }
-        return context;
+        return SSLContext.getInstance("TLSv1.3", JSSE_PROVIDER);
+    }
+
+    private void verifyPqcSupport() {
+        String[] groups = sslContext.getSupportedSSLParameters().getNamedGroups();
+        boolean supported = groups != null && Arrays.asList(groups).contains(PQC_HYBRID_GROUP);
+        if (!supported && requirePqc) {
+            throw new IllegalStateException(
+                    PQC_HYBRID_GROUP + " is not supported by provider " + sslContext.getProvider().getName()
+                            + ". Supported groups: " + (groups != null ? Arrays.toString(groups) : "none")
+                            + ". Upgrade Bouncy Castle to 1.81+ or set ssl.pqc.require=false.");
+        }
+        if (!supported) {
+            log.warn("{} is NOT supported by {} — connections will use classical ECDH only.",
+                    PQC_HYBRID_GROUP, sslContext.getProvider().getName());
+        } else {
+            log.info("Post-quantum group {} confirmed available via {}",
+                    PQC_HYBRID_GROUP, sslContext.getProvider().getName());
+        }
     }
 
     private void applyPqcGroups(SSLEngine engine) {
-        try {
-            SSLParameters params = engine.getSSLParameters();
-            params.setNamedGroups(PRIORITISED_GROUPS);
-            engine.setSSLParameters(params);
-            String[] groups = sslContext.getSupportedSSLParameters().getNamedGroups();
-            if (groups == null) {
-                log.debug("Configured preferred TLS named groups {} for provider {}",
-                        Arrays.toString(PRIORITISED_GROUPS), sslContext.getProvider().getName());
-                return;
-            }
-
-            if (Arrays.asList(groups).contains(PQC_HYBRID_GROUP)) {
-                log.debug("PQC hybrid group {} enabled for {}:{} using provider {}",
-                        PQC_HYBRID_GROUP, engine.getPeerHost(), engine.getPeerPort(),
-                        sslContext.getProvider().getName());
-            } else {
-                log.warn("{} not reported by provider {}. Handshake may fall back to classical groups. Supported: {}",
-                        PQC_HYBRID_GROUP, sslContext.getProvider().getName(), Arrays.toString(groups));
-            }
-        } catch (RuntimeException exception) {
-            log.warn("Unable to prioritise TLS named groups {}. Handshake will use provider defaults.",
-                    Arrays.toString(PRIORITISED_GROUPS), exception);
-        }
+        SSLParameters params = engine.getSSLParameters();
+        params.setNamedGroups(PRIORITISED_GROUPS);
+        engine.setSSLParameters(params);
     }
 
     private KeyStore loadStore(Map<String, ?> configs, String locationKey,
