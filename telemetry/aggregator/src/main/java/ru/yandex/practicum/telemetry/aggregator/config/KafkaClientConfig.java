@@ -36,6 +36,7 @@ import ru.yandex.practicum.telemetry.serialization.SensorsSnapshotDeserializer;
 public class KafkaClientConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaClientConfig.class);
+    private static final String SSL_STORE_TYPE = "PKCS12";
 
     /**
      * Appends PQC / TLS SSL properties to a Kafka client config map when
@@ -53,8 +54,10 @@ public class KafkaClientConfig {
         config.put("ssl.pqc.require", String.valueOf(ssl.isPqcRequire()));
         config.put("ssl.truststore.location", ssl.getTruststoreLocation());
         config.put("ssl.truststore.password", ssl.getTruststorePassword());
+        config.put("ssl.truststore.type", SSL_STORE_TYPE);
         config.put("ssl.keystore.location", ssl.getKeystoreLocation());
         config.put("ssl.keystore.password", ssl.getKeystorePassword());
+        config.put("ssl.keystore.type", SSL_STORE_TYPE);
         config.put("ssl.key.password", ssl.getKeyPassword());
     }
 

@@ -31,6 +31,7 @@ public class KafkaProducerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
     private static final String SSL_PROTOCOL = "TLSv1.3";
+    private static final String SSL_STORE_TYPE = "PKCS12";
     private static final String SSL_ENGINE_FACTORY_CLASS =
             "ru.yandex.practicum.telemetry.collector.config.pqc.HybridPqcSslEngineFactory";
 
@@ -94,8 +95,10 @@ public class KafkaProducerConfig {
         configuration.put("ssl.pqc.require", String.valueOf(ssl.isPqcRequire()));
         configuration.put("ssl.truststore.location", ssl.getTruststoreLocation());
         configuration.put("ssl.truststore.password", ssl.getTruststorePassword());
+        configuration.put("ssl.truststore.type", SSL_STORE_TYPE);
         configuration.put("ssl.keystore.location", ssl.getKeystoreLocation());
         configuration.put("ssl.keystore.password", ssl.getKeystorePassword());
+        configuration.put("ssl.keystore.type", SSL_STORE_TYPE);
         configuration.put("ssl.key.password", ssl.getKeyPassword());
     }
 

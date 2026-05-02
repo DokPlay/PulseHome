@@ -33,7 +33,9 @@ class KafkaProducerConfigSslTest {
                         "ru.yandex.practicum.telemetry.collector.config.pqc.HybridPqcSslEngineFactory")
                 .containsEntry("ssl.pqc.require", "true")
                 .containsEntry("ssl.truststore.location", "/tls/client.truststore.p12")
+                .containsEntry("ssl.truststore.type", "PKCS12")
                 .containsEntry("ssl.keystore.location", "/tls/client.keystore.p12")
+                .containsEntry("ssl.keystore.type", "PKCS12")
                 .containsEntry("ssl.key.password", "private-secret");
 
         Map<String, Object> adminConfiguration = new HashMap<>();

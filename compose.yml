@@ -5,7 +5,7 @@ services:
     entrypoint: ["/bin/bash", "/scripts/generate-certs.sh"]
     environment:
       CERT_DIR: /certs
-      STORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      STORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
     volumes:
       - pulsehome-tls-certs:/certs
       - ./infra/tls/generate-certs.sh:/scripts/generate-certs.sh:ro
@@ -20,9 +20,10 @@ services:
       CLUSTER_ID: abcdefghijklmnopqrstuv
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: SSL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: SSL://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: SSL://0.0.0.0:9092,SSL_HOST://0.0.0.0:19092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: SSL://kafka:9092,SSL_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,SSL_HOST:SSL,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: SSL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -32,20 +33,20 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       # Broker TLS
-      KAFKA_SSL_KEYSTORE_LOCATION: /certs/kafka.keystore.p12
-      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
-      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
-      KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
-      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka.keystore.p12
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore-password.txt
+      KAFKA_SSL_KEY_CREDENTIALS: key-password.txt
+      KAFKA_SSL_TRUSTSTORE_FILENAME: truststore.p12
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore-password.txt
       KAFKA_SSL_CLIENT_AUTH: required
       KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.3
     ports:
-      - "9092:9092"
+      - "${KAFKA_HOST_BIND_ADDRESS:-127.0.0.1}:${KAFKA_HOST_PORT:-19092}:19092"
     volumes:
       - pulsehome-kafka-data:/var/lib/kafka/data
-      - pulsehome-tls-certs:/certs:ro
+      - pulsehome-tls-certs:/etc/kafka/secrets:ro
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --command-config /dev/null --list >/dev/null 2>&1 || kill -0 1"]
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --command-config /etc/kafka/secrets/kafka-health.properties --list >/dev/null"]
       interval: 10s
       timeout: 10s
       retries: 12
@@ -57,7 +58,7 @@ services:
       POSTGRES_USER: ${PULSEHOME_POSTGRES_USER:?Set PULSEHOME_POSTGRES_USER in your environment or .env}
       POSTGRES_PASSWORD: ${PULSEHOME_POSTGRES_PASSWORD:?Set PULSEHOME_POSTGRES_PASSWORD in your environment or .env}
     ports:
-      - "5432:5432"
+      - "${PULSEHOME_POSTGRES_BIND_ADDRESS:-127.0.0.1}:${PULSEHOME_POSTGRES_HOST_PORT:-15432}:5432"
     volumes:
       - pulsehome-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -75,7 +76,7 @@ services:
     environment:
       HUB_ROUTER_STUB_PORT: 59090
     ports:
-      - "59090:59090"
+      - "${HUB_ROUTER_STUB_BIND_ADDRESS:-127.0.0.1}:${HUB_ROUTER_STUB_HOST_PORT:-59090}:59090"
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 59090"]
       interval: 10s
@@ -96,16 +97,17 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: SSL
       KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
-      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
       KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
-      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
-      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_PQC_REQUIRE: ${KAFKA_SSL_PQC_REQUIRE:-false}
       COLLECTOR_BASIC_AUTH_USERNAME: ${COLLECTOR_BASIC_AUTH_USERNAME:-collector}
       COLLECTOR_BASIC_AUTH_PASSWORD: ${COLLECTOR_BASIC_AUTH_PASSWORD:?Set COLLECTOR_BASIC_AUTH_PASSWORD in your environment or .env}
-      COLLECTOR_REQUIRE_HTTPS: "false"
+      COLLECTOR_REQUIRE_HTTPS: ${COLLECTOR_REQUIRE_HTTPS:-false}
       COLLECTOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
     ports:
-      - "8080:8080"
+      - "${COLLECTOR_BIND_ADDRESS:-127.0.0.1}:${COLLECTOR_HOST_PORT:-8080}:8080"
     volumes:
       - pulsehome-tls-certs:/certs:ro
     healthcheck:
@@ -128,10 +130,11 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: SSL
       KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
-      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
       KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
-      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
-      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_PQC_REQUIRE: ${KAFKA_SSL_PQC_REQUIRE:-false}
       AGGREGATOR_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
     volumes:
       - pulsehome-tls-certs:/certs:ro
@@ -159,16 +162,17 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: SSL
       KAFKA_SSL_TRUSTSTORE_LOCATION: /certs/truststore.p12
-      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
       KAFKA_SSL_KEYSTORE_LOCATION: /certs/client.keystore.p12
-      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
-      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:-changeit}
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_KEY_PASSWORD: ${TLS_STORE_PASSWORD:?Set TLS_STORE_PASSWORD in your environment or .env}
+      KAFKA_SSL_PQC_REQUIRE: ${KAFKA_SSL_PQC_REQUIRE:-false}
       ANALYZER_KAFKA_TOPIC_BOOTSTRAP_ENABLED: "true"
       ANALYZER_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PULSEHOME_POSTGRES_DB:-analyzer}
       ANALYZER_DATASOURCE_USERNAME: ${PULSEHOME_POSTGRES_USER:?Set PULSEHOME_POSTGRES_USER in your environment or .env}
       ANALYZER_DATASOURCE_PASSWORD: ${PULSEHOME_POSTGRES_PASSWORD:?Set PULSEHOME_POSTGRES_PASSWORD in your environment or .env}
-      GRPC_HUB_ROUTER_ADDRESS: static://hub-router-stub:59090
-      GRPC_HUB_ROUTER_NEGOTIATION_TYPE: plaintext
+      GRPC_HUB_ROUTER_ADDRESS: ${GRPC_HUB_ROUTER_ADDRESS:-static://hub-router-stub:59090}
+      GRPC_HUB_ROUTER_NEGOTIATION_TYPE: ${GRPC_HUB_ROUTER_NEGOTIATION_TYPE:-plaintext}
     volumes:
       - pulsehome-tls-certs:/certs:ro
     healthcheck:

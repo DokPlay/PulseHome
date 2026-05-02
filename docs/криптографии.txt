@@ -1,0 +1,193 @@
+## 🔐 Финализированные квантово-устойчивые стандарты NIST (2024–2025)
+
+В августе 2024 года NIST опубликовал три финальных стандарта PQC: **ML-KEM** (FIPS 203), **ML-DSA** (FIPS 204) и **SLH-DSA** (FIPS 205). В марте 2025 года был выбран пятый алгоритм — **HQC** — как резервный для ML-KEM.
+
+| Стандарт | Назначение | Алгоритм |
+|---|---|---|
+| **ML-KEM** (FIPS 203) | Шифрование + обмен ключами | CRYSTALS-Kyber |
+| **ML-DSA** (FIPS 204) | Цифровая подпись | CRYSTALS-Dilithium |
+| **SLH-DSA** (FIPS 205) | Цифровая подпись (хэш-based) | SPHINCS+ |
+| **FN-DSA** (FIPS 206) | Цифровая подпись | FALCON |
+
+---
+
+## 🏠 Что встроить в умный дом — и почему
+
+Для умного дома нужны **два разных** алгоритма под разные задачи:
+
+**1. ML-KEM-768** — для **шифрования каждого запроса** (обмен ключами)
+**2. ML-DSA-65** — для **аутентификации** (подпись устройств)
+
+ML-KEM — это так называемый «key encapsulation mechanism» (KEM), который применяется как первое рукопожатие между двумя сторонами при передаче конфиденциальных данных по публичной сети.
+
+**Не нужно** встраивать все 4 алгоритма в каждый запрос — это избыточно. Оптимальная схема:
+
+- **ML-KEM** → защищает тело запроса (шифрует сессионный ключ)
+- **ML-DSA** → подписывает команды (гарантирует что команда от вашего устройства)
+
+---
+
+## ☕ Реализация в Java — Библиотека Bouncy Castle
+
+В 2024 году Bouncy Castle добавил поддержку финальных стандартов NIST PQC (ML-KEM, ML-DSA, SLH-DSA), а в 2025 году получил первую FIPS 140-3 сертификацию с поддержкой квантово-устойчивых алгоритмов.
+
+Java 24 (JEP 496/497) добавила нативную поддержку ML-KEM и ML-DSA в стандартную библиотеку. Также реализована гибридная схема **X25519MLKEM768**, объединяющая классический ECDHE с ML-KEM-768.
+
+### Maven зависимость:
+```xml
+<dependency>
+    <groupId>org.bouncycastle</groupId>
+    <artifactId>bcprov-jdk18on</artifactId>
+    <version>1.81</version>
+</dependency>
+```
+
+---
+
+### 🔑 Пример 1: ML-KEM — шифрование запроса к умному дому
+
+```java
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
+import org.bouncycastle.pqc.jcajce.spec.MLKEMParameterSpec;
+import javax.crypto.KEM;
+import java.security.*;
+
+public class SmartHomeEncryption {
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+        Security.addProvider(new BouncyCastlePQCProvider());
+    }
+
+    // ШАГ 1: Генерация ключей (делается один раз на устройстве)
+    public static KeyPair generateMLKEMKeyPair() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("ML-KEM", "BCPQC");
+        kpg.initialize(MLKEMParameterSpec.ml_kem_768); // оптимальный для IoT
+        return kpg.generateKeyPair();
+    }
+
+    // ШАГ 2: Клиент (телефон/хаб) шифрует команду → умный дом
+    public static byte[] encryptCommand(PublicKey serverPublicKey, byte[] command) throws Exception {
+        KEM kem = KEM.getInstance("ML-KEM", "BCPQC");
+        KEM.Encapsulator encapsulator = kem.newEncapsulator(serverPublicKey);
+        KEM.Encapsulated encapsulated = encapsulator.encapsulate();
+        
+        // Используем общий секрет как ключ для AES-256
+        SecretKey sharedKey = encapsulated.key();
+        byte[] encapsulation = encapsulated.encapsulation();
+        
+        // Шифруем AES-256-GCM
+        byte[] encryptedData = AESUtil.encrypt(command, sharedKey);
+        
+        // Отправляем: encapsulation + encryptedData
+        return combine(encapsulation, encryptedData);
+    }
+
+    // ШАГ 3: Умный дом расшифровывает команду
+    public static byte[] decryptCommand(PrivateKey privateKey, byte[] received) throws Exception {
+        byte[] encapsulation = extractEncapsulation(received);
+        byte[] encryptedData = extractData(received);
+        
+        KEM kem = KEM.getInstance("ML-KEM", "BCPQC");
+        KEM.Decapsulator decapsulator = kem.newDecapsulator(privateKey);
+        SecretKey sharedKey = decapsulator.decapsulate(encapsulation);
+        
+        return AESUtil.decrypt(encryptedData, sharedKey);
+    }
+}
+```
+
+---
+
+### ✍️ Пример 2: ML-DSA — подпись команды (аутентификация устройства)
+
+```java
+import org.bouncycastle.pqc.jcajce.spec.MLDSAParameterSpec;
+import java.security.*;
+
+public class SmartHomeAuth {
+
+    // Генерация ключей подписи (один раз)
+    public static KeyPair generateSigningKeys() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("ML-DSA", "BCPQC");
+        kpg.initialize(MLDSAParameterSpec.ml_dsa_65); // баланс: безопасность/скорость
+        return kpg.generateKeyPair();
+    }
+
+    // Подписываем команду перед отправкой
+    public static byte[] signCommand(PrivateKey privateKey, byte[] command) throws Exception {
+        Signature signer = Signature.getInstance("ML-DSA", "BCPQC");
+        signer.initSign(privateKey);
+        signer.update(command);
+        return signer.sign();
+    }
+
+    // Умный дом проверяет подпись
+    public static boolean verifyCommand(PublicKey publicKey, byte[] command, byte[] signature) 
+            throws Exception {
+        Signature verifier = Signature.getInstance("ML-DSA", "BCPQC");
+        verifier.initVerify(publicKey);
+        verifier.update(command);
+        return verifier.verify(signature);
+    }
+}
+```
+
+---
+
+### 🏠 Пример 3: Полный запрос к умному дому (шифрование + подпись)
+
+```java
+public class SmartHomeRequest {
+
+    // Отправка защищённой команды
+    public static void sendSecureCommand(String command) throws Exception {
+        byte[] commandBytes = command.getBytes(StandardCharsets.UTF_8);
+        
+        // 1. Подписываем команду (аутентификация)
+        byte[] signature = SmartHomeAuth.signCommand(myPrivateSignKey, commandBytes);
+        
+        // 2. Формируем пакет: команда + подпись
+        byte[] packet = packMessage(commandBytes, signature);
+        
+        // 3. Шифруем весь пакет (конфиденциальность)
+        byte[] encrypted = SmartHomeEncryption.encryptCommand(serverPublicKey, packet);
+        
+        // 4. Отправляем на умный дом (MQTT / HTTPS)
+        mqttClient.publish("/home/light/control", encrypted);
+    }
+
+    // На стороне умного дома
+    public static void handleRequest(byte[] encrypted) throws Exception {
+        // 1. Расшифровываем
+        byte[] packet = SmartHomeEncryption.decryptCommand(serverPrivateKey, encrypted);
+        
+        // 2. Извлекаем команду и подпись
+        byte[] commandBytes = extractCommand(packet);
+        byte[] signature    = extractSignature(packet);
+        
+        // 3. Проверяем подпись
+        if (!SmartHomeAuth.verifyCommand(clientPublicKey, commandBytes, signature)) {
+            throw new SecurityException("Неверная подпись! Команда отклонена.");
+        }
+        
+        // 4. Выполняем команду
+        executeCommand(new String(commandBytes));
+    }
+}
+```
+
+---
+
+## 📊 Итоговая рекомендация для умного дома
+
+| Задача | Алгоритм | Уровень безопасности |
+|---|---|---|
+| Шифрование запросов | **ML-KEM-768** | 3 (оптимально для IoT) |
+| Подпись команд | **ML-DSA-65** | 3 (128-bit квантовой безопасности) |
+| Очень чувств. данные | ML-KEM-1024 + ML-DSA-87 | 5 (максимум) |
+
+NIST рекомендует **гибридный подход** — комбинировать ML-KEM с классическим X25519 на переходный период. Это обеспечивает безопасность даже если один из алгоритмов окажется уязвимым.
+
+**Вывод:** встраивай **одну пару** (ML-KEM + ML-DSA) в каждый запрос — не все четыре. ML-KEM шифрует, ML-DSA аутентифицирует. Это стандарт, который уже сегодня защитит твой умный дом от квантовых компьютеров будущего.

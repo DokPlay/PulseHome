@@ -29,7 +29,9 @@ class KafkaConsumerConfigSslTest {
                         "ru.yandex.practicum.telemetry.analyzer.config.pqc.HybridPqcSslEngineFactory")
                 .containsEntry("ssl.pqc.require", "true")
                 .containsEntry("ssl.truststore.location", "/tls/analyzer.truststore.p12")
+                .containsEntry("ssl.truststore.type", "PKCS12")
                 .containsEntry("ssl.keystore.location", "/tls/analyzer.keystore.p12")
+                .containsEntry("ssl.keystore.type", "PKCS12")
                 .containsEntry("ssl.key.password", "private-secret");
     }
 }

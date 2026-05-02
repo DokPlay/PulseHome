@@ -12,6 +12,12 @@ Thumbs.db
 # Logs
 *.log
 
+# Local diff artifacts
+*.patch
+*.diff
+diff.patch
+full_diff.patch
+
 # Local secrets
 .env
 .env.*

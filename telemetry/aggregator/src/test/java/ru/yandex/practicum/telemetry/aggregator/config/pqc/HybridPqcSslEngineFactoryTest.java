@@ -8,10 +8,12 @@ import org.junit.jupiter.api.Test;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.apache.kafka.common.config.types.Password;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -28,7 +30,7 @@ class HybridPqcSslEngineFactoryTest {
     }
 
     @Test
-    void shouldUseBcJsseProviderAndSetNamedGroups() throws Exception {
+    void shouldSelectProviderAndSetNamedGroups() throws Exception {
         HybridPqcSslEngineFactory factory = new HybridPqcSslEngineFactory();
         factory.configure(Map.of("ssl.pqc.require", "false"));
 
@@ -38,17 +40,23 @@ class HybridPqcSslEngineFactoryTest {
         sslContextField.setAccessible(true);
         SSLContext sslContext = (SSLContext) sslContextField.get(factory);
 
-        assertThat(sslContext.getProvider().getName()).isEqualTo("BCJSSE");
         assertThat(engine.getUseClientMode()).isTrue();
         assertThat(engine.getSSLParameters().getEndpointIdentificationAlgorithm()).isEqualTo("https");
 
         String[] groups = engine.getSSLParameters().getNamedGroups();
         assertThat(groups).isNotNull();
-        assertThat(groups[0]).isEqualTo("X25519MLKEM768");
+        assertThat(groups).isNotEmpty();
+        if (bcSupportsPqc()) {
+            assertThat(sslContext.getProvider().getName()).isEqualTo("BCJSSE");
+            assertThat(groups[0]).isEqualTo("X25519MLKEM768");
+        } else {
+            assertThat(sslContext.getProvider().getName()).isNotEqualTo("BCJSSE");
+            assertThat(groups).doesNotContain("X25519MLKEM768");
+        }
     }
 
     @Test
-    void shouldCreateServerEngine() {
+    void shouldCreateServerEngine() throws Exception {
         HybridPqcSslEngineFactory factory = new HybridPqcSslEngineFactory();
         factory.configure(Map.of("ssl.pqc.require", "false"));
 
@@ -57,18 +65,28 @@ class HybridPqcSslEngineFactoryTest {
         assertThat(engine.getUseClientMode()).isFalse();
         String[] groups = engine.getSSLParameters().getNamedGroups();
         assertThat(groups).isNotNull();
-        assertThat(groups[0]).isEqualTo("X25519MLKEM768");
+        assertThat(groups).isNotEmpty();
+        if (bcSupportsPqc()) {
+            assertThat(groups[0]).isEqualTo("X25519MLKEM768");
+        } else {
+            assertThat(groups).doesNotContain("X25519MLKEM768");
+        }
+    }
+
+    @Test
+    void shouldReadKafkaPasswordValues() throws Exception {
+        Method stringValue = HybridPqcSslEngineFactory.class.getDeclaredMethod("stringValue", Map.class, String.class);
+        stringValue.setAccessible(true);
+
+        Object value = stringValue.invoke(null, Map.of("ssl.truststore.password", new Password("secret")),
+                "ssl.truststore.password");
+
+        assertThat(value).isEqualTo("secret");
     }
 
     @Test
     void shouldFailFastWhenPqcRequiredButGroupUnavailable() throws Exception {
-        SSLContext bcjsseCtx = SSLContext.getInstance("TLSv1.3", "BCJSSE");
-        bcjsseCtx.init(null, null, null);
-        String[] supportedGroups = bcjsseCtx.getSupportedSSLParameters().getNamedGroups();
-        boolean pqcAvailable = supportedGroups != null
-                && Arrays.asList(supportedGroups).contains("X25519MLKEM768");
-
-        if (pqcAvailable) {
+        if (bcSupportsPqc()) {
             HybridPqcSslEngineFactory factory = new HybridPqcSslEngineFactory();
             factory.configure(Map.of("ssl.pqc.require", "true"));
 
@@ -84,5 +102,12 @@ class HybridPqcSslEngineFactoryTest {
                     .rootCause()
                     .hasMessageContaining("X25519MLKEM768");
         }
+    }
+
+    private static boolean bcSupportsPqc() throws Exception {
+        SSLContext bcjsseCtx = SSLContext.getInstance("TLSv1.3", "BCJSSE");
+        bcjsseCtx.init(null, null, null);
+        String[] supportedGroups = bcjsseCtx.getSupportedSSLParameters().getNamedGroups();
+        return supportedGroups != null && Arrays.asList(supportedGroups).contains("X25519MLKEM768");
     }
 }
