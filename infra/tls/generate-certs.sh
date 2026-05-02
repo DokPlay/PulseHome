@@ -55,8 +55,10 @@ write_kafka_files() {
   cat > "$CERT_DIR/kafka-health.properties" <<EOF
 security.protocol=SSL
 ssl.truststore.location=/etc/kafka/secrets/truststore.p12
+ssl.truststore.type=PKCS12
 ssl.truststore.password=$STORE_PASSWORD
 ssl.keystore.location=/etc/kafka/secrets/client.keystore.p12
+ssl.keystore.type=PKCS12
 ssl.keystore.password=$STORE_PASSWORD
 ssl.key.password=$STORE_PASSWORD
 EOF
