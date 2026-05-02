@@ -197,12 +197,15 @@ Analyzer   ──TLS 1.3 + X25519MLKEM768──>  Kafka
 
 ### Принудительная защита
 
-PQC **обязателен** в production (`ssl.pqc.require` по умолчанию `true`):
+PQC **обязателен**, когда `KAFKA_SSL_PQC_REQUIRE=true` (`ssl.pqc.require` по умолчанию `true` в конфигурации сервисов):
 
 - Если провайдер `BCJSSE` отсутствует → старт **падает** с понятной ошибкой.
 - Если `X25519MLKEM768` не поддерживается провайдером → старт **падает**.
 - Фабрика **не откатывается молча** на классический ECDH.
 - Для запуска без PQC (только dev/test) явно установите `KAFKA_SSL_PQC_REQUIRE=false`.
+
+Docker Compose по умолчанию выставляет `KAFKA_SSL_PQC_REQUIRE=false`, чтобы локальный smoke-стек запускался на JDK/provider-связках, где BCJSSE ещё не отдаёт `X25519MLKEM768`.
+Для реального production включайте `true` только после проверки, что выбранные JDK и Bouncy Castle runtime поддерживают эту named group.
 
 > **Принцип:** квантово-небезопасное соединение хуже, чем отсутствие соединения.
 > PulseHome предпочитает упасть и оповестить, а не молча деградировать.
@@ -313,6 +316,245 @@ docker compose logs -f collector
 ```bash
 docker compose down
 ```
+
+## Развёртывание на сервере и подключение своего приложения
+
+Ниже инструкция в формате "какое значение куда вписать". Номера строк могут меняться, поэтому ищите в файле указанную переменную или строку целиком.
+
+### 1. Склонируйте проект и создайте `.env`
+
+На сервере выполните:
+
+```bash
+git clone <url-вашего-форка-или-этого-репозитория> pulsehome
+cd pulsehome
+cp .env.example .env
+chmod 600 .env
+```
+
+Откройте файл `.env` в корне PulseHome. Все значения ниже меняются именно в этом файле, если отдельно не написано другое.
+
+### 2. Замените значения в `.env`
+
+База данных. Откройте `.env` и замените значения после `=`:
+
+| В `.env` найдите строку | На что заменить |
+| --- | --- |
+| `PULSEHOME_POSTGRES_DB=pulsehome` | Имя БД для этого сервера, например `pulsehome_prod`. |
+| `PULSEHOME_POSTGRES_USER=pulsehome_app` | Имя пользователя БД, например `pulsehome_app`. |
+| `PULSEHOME_POSTGRES_PASSWORD=replace-with-strong-db-password` | Сильный пароль БД. Сгенерируйте свой. |
+| `PULSEHOME_POSTGRES_BIND_ADDRESS=127.0.0.1` | Обычно оставить `127.0.0.1`, чтобы БД не торчала в интернет. |
+| `PULSEHOME_POSTGRES_HOST_PORT=15432` | Обычно оставить `15432`; меняйте только если порт занят. |
+
+Эти значения не надо вписывать в Java-код. `compose.yml` сам передаст их в контейнеры `postgres` и `analyzer`.
+
+Collector API. Это логин и пароль, которыми ваш backend или доверенный gateway будет отправлять события в PulseHome:
+
+| В `.env` найдите строку | На что заменить |
+| --- | --- |
+| `COLLECTOR_BASIC_AUTH_USERNAME=pulsehome_ingest` | Любой служебный логин, например `pulsehome_ingest`. Это же значение потом вставьте в backend как `PULSEHOME_API_USERNAME`. |
+| `COLLECTOR_BASIC_AUTH_PASSWORD=replace-with-strong-collector-api-password` | Сильный API-пароль. Это же значение потом вставьте в backend как `PULSEHOME_API_PASSWORD`. Не кладите его во frontend. |
+| `COLLECTOR_BIND_ADDRESS=127.0.0.1` | Оставьте `127.0.0.1`, если Caddy/Nginx стоит на этом же сервере. |
+| `COLLECTOR_HOST_PORT=8080` | Порт Collector на сервере. Если поменяли, тот же порт укажите в reverse proxy: `127.0.0.1:<ваш-порт>`. |
+| `COLLECTOR_REQUIRE_HTTPS=false` | Для первого запуска оставьте `false`. После настройки HTTPS-домена замените на `true`. |
+
+Kafka TLS. Это внутренняя защита между сервисами PulseHome:
+
+| В `.env` найдите строку | На что заменить |
+| --- | --- |
+| `TLS_STORE_PASSWORD=replace-with-strong-tls-store-password` | Сильный пароль TLS-хранилищ. Задайте до первого `docker compose up`. |
+| `KAFKA_SSL_PQC_REQUIRE=false` | Для первого запуска оставить `false`; после проверки поддержки `X25519MLKEM768` можно заменить на `true`. |
+| `KAFKA_HOST_BIND_ADDRESS=127.0.0.1` | Оставьте `127.0.0.1`, Kafka не должна быть публичной. |
+| `KAFKA_HOST_PORT=19092` | Обычно оставить `19092`; это локальный admin/client порт Kafka на сервере. |
+
+Hub Router. Для демо оставьте stub. Для настоящего железа замените две строки:
+
+| В `.env` найдите строку | Для demo | Для реального Hub Router |
+| --- | --- | --- |
+| `GRPC_HUB_ROUTER_ADDRESS=static://hub-router-stub:59090` | Оставить как есть. | `GRPC_HUB_ROUTER_ADDRESS=static://hub-router.your-domain.com:443` |
+| `GRPC_HUB_ROUTER_NEGOTIATION_TYPE=plaintext` | Оставить как есть. | `GRPC_HUB_ROUTER_NEGOTIATION_TYPE=TLS` |
+
+### 3. Впишите домен в DNS и reverse proxy
+
+В панели DNS вашего домена создайте запись:
+
+| Поле DNS | Что поставить |
+| --- | --- |
+| Type | `A` |
+| Name/Host | `api` если нужен `api.your-domain.com` |
+| Value/IP | Публичный IP вашего сервера |
+
+Если используете Caddy, откройте `/etc/caddy/Caddyfile` и замените:
+
+| В файле Caddy найти | На что заменить |
+| --- | --- |
+| `api.your-domain.com` | Ваш API-домен, например `api.example.com`. |
+| `127.0.0.1:8080` | Оставить так, если в `.env` `COLLECTOR_HOST_PORT=8080`; иначе поставить `127.0.0.1:<ваш-COLLECTOR_HOST_PORT>`. |
+
+Пример:
+
+```caddyfile
+api.example.com {
+    reverse_proxy 127.0.0.1:8080 {
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+    }
+}
+```
+
+Перезагрузите Caddy:
+
+```bash
+sudo systemctl reload caddy
+```
+
+Если используете Nginx, откройте `/etc/nginx/sites-available/pulsehome.conf` и замените:
+
+| В файле Nginx найти | На что заменить |
+| --- | --- |
+| `server_name api.your-domain.com;` | `server_name api.example.com;` с вашим доменом. |
+| `/etc/letsencrypt/live/api.your-domain.com/fullchain.pem` | Путь к сертификату вашего API-домена. |
+| `/etc/letsencrypt/live/api.your-domain.com/privkey.pem` | Путь к ключу вашего API-домена. |
+| `proxy_pass http://127.0.0.1:8080;` | Оставить так, если `COLLECTOR_HOST_PORT=8080`; иначе поставить ваш порт. |
+
+Пример:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+Проверьте и перезагрузите Nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 4. Впишите PulseHome в backend вашего приложения
+
+Это уже не файл PulseHome. Это конфиг вашего backend на вашем хостинге.
+
+Если у backend есть `.env`, добавьте туда:
+
+```dotenv
+PULSEHOME_API_BASE_URL=https://api.example.com
+PULSEHOME_API_USERNAME=pulsehome_ingest
+PULSEHOME_API_PASSWORD=<то-же-значение-что-COLLECTOR_BASIC_AUTH_PASSWORD-в-PulseHome-.env>
+```
+
+Если backend на хостинге с env-панелью, добавьте те же три переменные в панели хостинга:
+
+| Переменная на хостинге | Значение |
+| --- | --- |
+| `PULSEHOME_API_BASE_URL` | Ваш API-домен PulseHome, например `https://api.example.com`. |
+| `PULSEHOME_API_USERNAME` | То же, что `COLLECTOR_BASIC_AUTH_USERNAME` в PulseHome `.env`. |
+| `PULSEHOME_API_PASSWORD` | То же, что `COLLECTOR_BASIC_AUTH_PASSWORD` в PulseHome `.env`. |
+
+Если backend тоже запускается через Docker Compose, добавьте в service вашего backend:
+
+```yaml
+environment:
+  PULSEHOME_API_BASE_URL: https://api.example.com
+  PULSEHOME_API_USERNAME: pulsehome_ingest
+  PULSEHOME_API_PASSWORD: <то-же-значение-что-COLLECTOR_BASIC_AUTH_PASSWORD>
+```
+
+Frontend/сайт не должен хранить пароль PulseHome. В frontend пишите только адрес вашего backend, например в `.env.production` вашего сайта:
+
+```dotenv
+PUBLIC_APP_BACKEND_URL=https://app-backend.example.com
+```
+
+Правильный поток:
+
+```text
+Сайт или мобильное приложение -> ваш backend -> PulseHome Collector
+Доверенный IoT gateway        -> PulseHome Collector
+```
+
+### 5. Запустите и проверьте
+
+В корне PulseHome на сервере:
+
+```bash
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+Проверка с самого сервера:
+
+```bash
+curl http://127.0.0.1:8080/actuator/health
+```
+
+Проверка через домен:
+
+```bash
+curl https://api.example.com/actuator/health
+```
+
+Когда проверка через HTTPS-домен работает, вернитесь в PulseHome `.env` и замените:
+
+```dotenv
+COLLECTOR_REQUIRE_HTTPS=true
+```
+
+Затем пересоздайте Collector:
+
+```bash
+docker compose up -d collector
+```
+
+### 6. Первый тестовый запрос из backend/gateway
+
+В backend или на доверенном gateway используйте те же env, которые добавили выше:
+
+```bash
+curl -u "$PULSEHOME_API_USERNAME:$PULSEHOME_API_PASSWORD" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "SWITCH_SENSOR_EVENT",
+    "id": "switch-1",
+    "hubId": "home-1",
+    "timestamp": "2026-05-01T12:00:00Z",
+    "state": true
+  }' \
+  "$PULSEHOME_API_BASE_URL/events/sensors"
+```
+
+Что менять в JSON под своё приложение:
+
+| Поле JSON | Что поставить |
+| --- | --- |
+| `hubId` | ID дома, аккаунта или gateway в вашем приложении, например `home-1`. |
+| `id` | ID устройства в вашем приложении, например `switch-1`. |
+| `timestamp` | UTC-время события. Можно не передавать, тогда Collector подставит текущее время для поддержанных DTO. |
+| `state` | Состояние датчика, например `true` или `false`. |
+
+### 7. Что не открывать наружу
+
+| Сервис/порт | Что делать |
+| --- | --- |
+| PostgreSQL `15432` | Держать на `127.0.0.1`, наружу не открывать. |
+| Kafka `19092` | Держать на `127.0.0.1`, наружу не открывать. |
+| Hub Router Stub `59090` | Только для локального smoke-test, наружу не открывать. |
+| Collector `8080` | Наружу отдавать через HTTPS reverse proxy, а не напрямую. |
+
+Не коммитьте `.env`. Коммитьте только `.env.example`.
 
 ## Локальная разработка без Docker
 
